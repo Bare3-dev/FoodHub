@@ -39,8 +39,8 @@ return new class extends Migration
             $table->index('is_featured');
             $table->index('slug');
             
-            // Full-text search index for PostgreSQL
-            DB::statement('CREATE INDEX restaurants_search_idx ON restaurants USING gin(to_tsvector(\'english\', name || \' \' || COALESCE(description, \'\')))');
+            // Removed: Full-text search index for PostgreSQL (will be in a separate migration)
+            // DB::statement('CREATE INDEX restaurants_search_idx ON restaurants USING gin(to_tsvector(\'english\', name || \' \' || COALESCE(description, \'\')))');
         });
     }
 

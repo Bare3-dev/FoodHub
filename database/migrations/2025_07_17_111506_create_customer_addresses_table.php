@@ -40,8 +40,8 @@ return new class extends Migration
             $table->index(['city', 'state']);
             $table->index(['latitude', 'longitude']); // Geospatial queries
             
-            // Geospatial index for location-based queries
-            DB::statement('CREATE INDEX customer_addresses_location_idx ON customer_addresses USING gist(point(longitude, latitude))');
+            // Removed: Geospatial index for location-based queries (will be in a separate migration)
+            // DB::statement('CREATE INDEX customer_addresses_location_idx ON customer_addresses USING gist(point(longitude, latitude))');
         });
     }
 

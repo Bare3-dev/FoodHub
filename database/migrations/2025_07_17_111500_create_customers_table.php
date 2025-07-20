@@ -44,8 +44,8 @@ return new class extends Migration
             $table->index('last_login_at');
             $table->index('total_orders');
             
-            // Full-text search index for customer search
-            DB::statement('CREATE INDEX customers_search_idx ON customers USING gin(to_tsvector(\'english\', first_name || \' \' || last_name || \' \' || COALESCE(email, \'\')))');
+            // Removed: Full-text search index for customer search (will be in a separate migration)
+            // DB::statement('CREATE INDEX customers_search_idx ON customers USING gin(to_tsvector(\'english\', first_name || \' \' || last_name || \' \' || COALESCE(email, \'\')))');
         });
     }
 

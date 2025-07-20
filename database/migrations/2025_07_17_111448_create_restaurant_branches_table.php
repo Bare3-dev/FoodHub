@@ -48,8 +48,8 @@ return new class extends Migration
             $table->index(['latitude', 'longitude']); // Geospatial queries
             $table->unique(['restaurant_id', 'slug']); // Unique slug per restaurant
             
-            // Geospatial index for location-based queries
-            DB::statement('CREATE INDEX restaurant_branches_location_idx ON restaurant_branches USING gist(point(longitude, latitude))');
+            // Removed: Geospatial index for location-based queries (will be in a separate migration)
+            // DB::statement('CREATE INDEX restaurant_branches_location_idx ON restaurant_branches USING gist(point(longitude, latitude))');
         });
     }
 

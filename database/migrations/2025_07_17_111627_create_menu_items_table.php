@@ -50,8 +50,8 @@ return new class extends Migration
             $table->unique(['restaurant_id', 'slug']); // Unique slug per restaurant
             $table->unique(['restaurant_id', 'sku']); // Unique SKU per restaurant
             
-            // Full-text search index for menu items
-            DB::statement('CREATE INDEX menu_items_search_idx ON menu_items USING gin(to_tsvector(\'english\', name || \' \' || COALESCE(description, \'\') || \' \' || COALESCE(ingredients, \'\')))');
+            // Removed: Full-text search index for menu items (will be in a separate migration)
+            // DB::statement('CREATE INDEX menu_items_search_idx ON menu_items USING gin(to_tsvector(\'english\', name || \' \' || COALESCE(description, \'\') || \' \' || COALESCE(ingredients, \'\')))');
         });
     }
 

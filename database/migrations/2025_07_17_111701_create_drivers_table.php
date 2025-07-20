@@ -62,8 +62,8 @@ return new class extends Migration
             $table->index('email');
             $table->index('phone');
             
-            // Geospatial index for location-based queries
-            DB::statement('CREATE INDEX drivers_location_idx ON drivers USING gist(point(current_longitude, current_latitude))');
+            // Removed: Geospatial index for location-based queries (will be in a separate migration)
+            // DB::statement('CREATE INDEX drivers_location_idx ON drivers USING gist(point(current_longitude, current_latitude))');
         });
     }
 

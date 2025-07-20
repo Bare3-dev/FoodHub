@@ -8,26 +8,23 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-final class OrderItem extends Model
+final class BranchMenuItem extends Model
 {
     use HasFactory;
+
+    protected $table = 'branch_menu_items';
 
     /**
      * The attributes that are mass assignable.
      */
     protected $fillable = [
-        'order_id',
+        'restaurant_branch_id',
         'menu_item_id',
-        'item_name',
-        'item_description',
-        'unit_price',
-        'quantity',
-        'total_price',
-        'customizations',
-        'special_instructions',
-        'nutritional_snapshot',
-        'allergens_snapshot',
-        'sku',
+        'price',
+        'is_available',
+        'is_featured',
+        'sort_order',
+        'settings',
     ];
 
     /**
@@ -36,29 +33,28 @@ final class OrderItem extends Model
     protected function casts(): array
     {
         return [
-            'unit_price' => 'decimal:2',
-            'total_price' => 'decimal:2',
-            'customizations' => 'array',
-            'nutritional_snapshot' => 'array',
-            'allergens_snapshot' => 'array',
+            'price' => 'decimal:2',
+            'is_available' => 'boolean',
+            'is_featured' => 'boolean',
+            'settings' => 'array',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
     }
 
     /**
-     * Get the order that owns the order item.
+     * Get the restaurant branch that owns the branch menu item.
      */
-    public function order(): BelongsTo
+    public function branch(): BelongsTo
     {
-        return $this->belongsTo(Order::class);
+        return $this->belongsTo(RestaurantBranch::class, 'restaurant_branch_id');
     }
 
     /**
-     * Get the menu item associated with the order item.
+     * Get the menu item that owns the branch menu item.
      */
     public function menuItem(): BelongsTo
     {
         return $this->belongsTo(MenuItem::class);
     }
-}
+} 

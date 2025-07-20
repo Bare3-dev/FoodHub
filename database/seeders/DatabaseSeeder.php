@@ -20,7 +20,11 @@ final class DatabaseSeeder extends Seeder
             RestaurantSeeder::class,
             UserRoleSeeder::class,
             CustomerSeeder::class,
+            CustomerAddressSeeder::class,
             MenuSeeder::class,
+            DriverSeeder::class,
+            LoyaltyProgramSeeder::class,
+            OrderSeeder::class,
         ]);
 
         $this->command->info('✅ FoodHub Database Seeding Completed Successfully!');
