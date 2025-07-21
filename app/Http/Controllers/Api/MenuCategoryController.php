@@ -17,6 +17,8 @@ class MenuCategoryController extends Controller
      */
     public function index(Request $request): Response
     {
+        $this->authorize('viewAny', MenuCategory::class);
+
         // Define the number of items per page, with a default of 15 and a maximum of 100.
         $perPage = $request->input('per_page', 15);
         $perPage = min($perPage, 100);
@@ -30,6 +32,8 @@ class MenuCategoryController extends Controller
      */
     public function store(StoreMenuCategoryRequest $request): Response
     {
+        $this->authorize('create', MenuCategory::class);
+
         // The request is automatically validated by StoreMenuCategoryRequest.
         // Access the validated data directly.
         $validated = $request->validated();
@@ -47,6 +51,8 @@ class MenuCategoryController extends Controller
      */
     public function show(MenuCategory $menuCategory): Response
     {
+        $this->authorize('view', $menuCategory);
+
         // Return the specified menu category transformed by MenuCategoryResource.
         // Laravel's route model binding automatically retrieves the menu category.
         return response(new MenuCategoryResource($menuCategory));
@@ -57,6 +63,8 @@ class MenuCategoryController extends Controller
      */
     public function update(UpdateMenuCategoryRequest $request, MenuCategory $menuCategory): Response
     {
+        $this->authorize('update', $menuCategory);
+
         // The request is automatically validated by UpdateMenuCategoryRequest.
         // Access the validated data directly.
         $validated = $request->validated();
@@ -73,6 +81,8 @@ class MenuCategoryController extends Controller
      */
     public function destroy(MenuCategory $menuCategory): Response
     {
+        $this->authorize('delete', $menuCategory);
+
         // Delete the specified menu category record.
         $menuCategory->delete();
 

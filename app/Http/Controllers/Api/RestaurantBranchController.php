@@ -17,6 +17,8 @@ class RestaurantBranchController extends Controller
      */
     public function index(Request $request): Response
     {
+        $this->authorize('viewAny', RestaurantBranch::class);
+
         // Define the number of items per page, with a default of 15 and a maximum of 100.
         $perPage = $request->input('per_page', 15);
         $perPage = min($perPage, 100);
@@ -30,6 +32,8 @@ class RestaurantBranchController extends Controller
      */
     public function store(StoreRestaurantBranchRequest $request): Response
     {
+        $this->authorize('create', RestaurantBranch::class);
+
         // The request is automatically validated by StoreRestaurantBranchRequest.
         // Access the validated data directly.
         $validated = $request->validated();
@@ -47,6 +51,8 @@ class RestaurantBranchController extends Controller
      */
     public function show(RestaurantBranch $restaurantBranch): Response
     {
+        $this->authorize('view', $restaurantBranch);
+
         // Return the specified restaurant branch transformed by RestaurantBranchResource.
         // Laravel's route model binding automatically retrieves the restaurant branch.
         return response(new RestaurantBranchResource($restaurantBranch));
@@ -57,6 +63,8 @@ class RestaurantBranchController extends Controller
      */
     public function update(UpdateRestaurantBranchRequest $request, RestaurantBranch $restaurantBranch): Response
     {
+        $this->authorize('update', $restaurantBranch);
+
         // The request is automatically validated by UpdateRestaurantBranchRequest.
         // Access the validated data directly.
         $validated = $request->validated();
@@ -73,6 +81,8 @@ class RestaurantBranchController extends Controller
      */
     public function destroy(RestaurantBranch $restaurantBranch): Response
     {
+        $this->authorize('delete', $restaurantBranch);
+
         // Delete the specified restaurant branch record.
         $restaurantBranch->delete();
 

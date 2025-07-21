@@ -17,6 +17,8 @@ class OrderController extends Controller
      */
     public function index(Request $request): Response
     {
+        $this->authorize('viewAny', Order::class);
+
         // Define the number of items per page, with a default of 15 and a maximum of 100.
         $perPage = $request->input('per_page', 15);
         $perPage = min($perPage, 100);
@@ -30,6 +32,8 @@ class OrderController extends Controller
      */
     public function store(StoreOrderRequest $request): Response
     {
+        $this->authorize('create', Order::class);
+
         // The request is automatically validated by StoreOrderRequest.
         // Access the validated data directly.
         $validated = $request->validated();
@@ -47,6 +51,8 @@ class OrderController extends Controller
      */
     public function show(Order $order): Response
     {
+        $this->authorize('view', $order);
+
         // Return the specified order transformed by OrderResource.
         // Laravel's route model binding automatically retrieves the order.
         return response(new OrderResource($order));
@@ -57,6 +63,8 @@ class OrderController extends Controller
      */
     public function update(UpdateOrderRequest $request, Order $order): Response
     {
+        $this->authorize('update', $order);
+
         // The request is automatically validated by UpdateOrderRequest.
         // Access the validated data directly.
         $validated = $request->validated();
@@ -73,6 +81,8 @@ class OrderController extends Controller
      */
     public function destroy(Order $order): Response
     {
+        $this->authorize('delete', $order);
+
         // Delete the specified order record.
         $order->delete();
 

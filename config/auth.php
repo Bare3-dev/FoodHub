@@ -112,4 +112,16 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Multi-Factor Authentication (MFA) OTP Expiration
+    |--------------------------------------------------------------------------
+    |
+    | This value controls the number of minutes until an MFA OTP code will be
+    | considered expired. This helps prevent replay attacks and increases security.
+    |
+    */
+
+    'mfa_otp_expiration' => env('MFA_OTP_EXPIRATION', 5),
+
 ];

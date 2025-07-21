@@ -10,6 +10,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Hash;
 
 final class User extends Authenticatable
 {
@@ -32,6 +33,9 @@ final class User extends Authenticatable
         'last_login_at',
         'is_email_verified',
         'profile_image_url',
+        'email_otp_code',
+        'email_otp_expires_at',
+        'is_mfa_enabled',
     ];
 
     /**
@@ -53,6 +57,8 @@ final class User extends Authenticatable
             'permissions' => 'array',
             'last_login_at' => 'datetime',
             'is_email_verified' => 'boolean',
+            'email_otp_expires_at' => 'datetime',
+            'is_mfa_enabled' => 'boolean',
         ];
     }
 
@@ -102,5 +108,78 @@ final class User extends Authenticatable
     public function isRestaurantOwner(): bool
     {
         return $this->hasRole('RESTAURANT_OWNER') || $this->isSuperAdmin();
+    }
+
+    /**
+     * Generate and store an email OTP code.
+     */
+    public function generateEmailOtpCode(): string
+    {
+        $code = (string) random_int(100000, 999999); // Generate a 6-digit code
+        $this->email_otp_code = Hash::make($code);
+        $this->email_otp_expires_at = now()->addMinutes(config('auth.mfa_otp_expiration', 5)); // Configurable expiration
+        $this->save();
+
+        return $code;
+    }
+
+    /**
+     * Verify an email OTP code.
+     */
+    public function verifyEmailOtpCode(string $code): bool
+    {
+        if (! $this->email_otp_code || ! $this->email_otp_expires_at) {
+            return false;
+        }
+
+        if (now()->isAfter($this->email_otp_expires_at)) {
+            $this->clearEmailOtpCode();
+            return false;
+        }
+
+        if (! Hash::check($code, $this->email_otp_code)) {
+            return false;
+        }
+
+        // Code is valid, clear it after successful verification
+        $this->clearEmailOtpCode();
+
+        return true;
+    }
+
+    /**
+     * Clear the email OTP code and expiration time.
+     */
+    public function clearEmailOtpCode(): void
+    {
+        $this->email_otp_code = null;
+        $this->email_otp_expires_at = null;
+        $this->save();
+    }
+
+    /**
+     * Enable MFA for the user.
+     */
+    public function enableMfa(): void
+    {
+        $this->is_mfa_enabled = true;
+        $this->save();
+    }
+
+    /**
+     * Disable MFA for the user.
+     */
+    public function disableMfa(): void
+    {
+        $this->is_mfa_enabled = false;
+        $this->save();
+    }
+
+    /**
+     * Check if MFA is enabled for the user.
+     */
+    public function hasMfaEnabled(): bool
+    {
+        return (bool) $this->is_mfa_enabled;
     }
 }

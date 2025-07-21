@@ -17,6 +17,8 @@ class LoyaltyProgramController extends Controller
      */
     public function index(Request $request): Response
     {
+        $this->authorize('viewAny', LoyaltyProgram::class);
+
         // Define the number of items per page, with a default of 15 and a maximum of 100.
         $perPage = $request->input('per_page', 15);
         $perPage = min($perPage, 100);
@@ -30,6 +32,8 @@ class LoyaltyProgramController extends Controller
      */
     public function store(StoreLoyaltyProgramRequest $request): Response
     {
+        $this->authorize('create', LoyaltyProgram::class);
+
         // The request is automatically validated by StoreLoyaltyProgramRequest.
         // Access the validated data directly.
         $validated = $request->validated();
@@ -47,6 +51,8 @@ class LoyaltyProgramController extends Controller
      */
     public function show(LoyaltyProgram $loyaltyProgram): Response
     {
+        $this->authorize('view', $loyaltyProgram);
+
         // Return the specified loyalty program transformed by LoyaltyProgramResource.
         // Laravel's route model binding automatically retrieves the loyalty program.
         return response(new LoyaltyProgramResource($loyaltyProgram));
@@ -57,6 +63,8 @@ class LoyaltyProgramController extends Controller
      */
     public function update(UpdateLoyaltyProgramRequest $request, LoyaltyProgram $loyaltyProgram): Response
     {
+        $this->authorize('update', $loyaltyProgram);
+
         // The request is automatically validated by UpdateLoyaltyProgramRequest.
         // Access the validated data directly.
         $validated = $request->validated();
@@ -73,6 +81,8 @@ class LoyaltyProgramController extends Controller
      */
     public function destroy(LoyaltyProgram $loyaltyProgram): Response
     {
+        $this->authorize('delete', $loyaltyProgram);
+
         // Delete the specified loyalty program record.
         $loyaltyProgram->delete();
 

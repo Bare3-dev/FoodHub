@@ -18,6 +18,8 @@ class MenuItemController extends Controller
      */
     public function index(Request $request, Restaurant $restaurant = null): Response
     {
+        $this->authorize('viewAny', MenuItem::class);
+
         // Initialize a query builder for MenuItem model.
         $query = MenuItem::query();
 
@@ -84,6 +86,8 @@ class MenuItemController extends Controller
      */
     public function store(StoreMenuItemRequest $request, Restaurant $restaurant = null): Response
     {
+        $this->authorize('create', MenuItem::class);
+
         // The request is automatically validated by StoreMenuItemRequest.
         // Access the validated data directly.
         $validated = $request->validated();
@@ -108,6 +112,8 @@ class MenuItemController extends Controller
      */
     public function show(Restaurant $restaurant = null, MenuItem $menuItem): Response
     {
+        $this->authorize('view', $menuItem);
+
         // If a restaurant is provided (nested resource), ensure the menu item belongs to it.
         if ($restaurant && $menuItem->restaurant_id !== $restaurant->id) {
             abort(404); // Not Found if the menu item does not belong to the specified restaurant.
@@ -122,6 +128,8 @@ class MenuItemController extends Controller
      */
     public function update(UpdateMenuItemRequest $request, Restaurant $restaurant = null, MenuItem $menuItem): Response
     {
+        $this->authorize('update', $menuItem);
+
         // If a restaurant is provided (nested resource), ensure the menu item belongs to it.
         if ($restaurant && $menuItem->restaurant_id !== $restaurant->id) {
             abort(404); // Not Found if the menu item does not belong to the specified restaurant.
@@ -143,6 +151,8 @@ class MenuItemController extends Controller
      */
     public function destroy(Restaurant $restaurant = null, MenuItem $menuItem): Response
     {
+        $this->authorize('delete', $menuItem);
+
         // If a restaurant is provided (nested resource), ensure the menu item belongs to it.
         if ($restaurant && $menuItem->restaurant_id !== $restaurant->id) {
             abort(404); // Not Found if the menu item does not belong to the specified restaurant.

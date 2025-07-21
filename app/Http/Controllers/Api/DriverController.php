@@ -18,6 +18,8 @@ class DriverController extends Controller
      */
     public function index(Request $request): Response
     {
+        $this->authorize('viewAny', Driver::class);
+
         // Define the number of items per page, with a default of 15 and a maximum of 100.
         $perPage = $request->input('per_page', 15);
         $perPage = min($perPage, 100);
@@ -31,6 +33,8 @@ class DriverController extends Controller
      */
     public function store(StoreDriverRequest $request): Response
     {
+        $this->authorize('create', Driver::class);
+
         // The request is automatically validated by StoreDriverRequest.
         // Access the validated data directly.
         $validated = $request->validated();
@@ -51,6 +55,8 @@ class DriverController extends Controller
      */
     public function show(Driver $driver): Response
     {
+        $this->authorize('view', $driver);
+
         // Return the specified driver transformed by DriverResource.
         // Laravel's route model binding automatically retrieves the driver.
         return response(new DriverResource($driver));
@@ -61,6 +67,8 @@ class DriverController extends Controller
      */
     public function update(UpdateDriverRequest $request, Driver $driver): Response
     {
+        $this->authorize('update', $driver);
+
         // The request is automatically validated by UpdateDriverRequest.
         // Access the validated data directly.
         $validated = $request->validated();
@@ -82,6 +90,8 @@ class DriverController extends Controller
      */
     public function destroy(Driver $driver): Response
     {
+        $this->authorize('delete', $driver);
+
         // Delete the specified driver record.
         $driver->delete();
 

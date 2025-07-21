@@ -18,6 +18,8 @@ class BranchMenuItemController extends Controller
      */
     public function index(Request $request, RestaurantBranch $restaurantBranch = null): Response
     {
+        $this->authorize('viewAny', BranchMenuItem::class);
+
         // Initialize a query builder for BranchMenuItem model.
         $query = BranchMenuItem::query();
 
@@ -41,6 +43,8 @@ class BranchMenuItemController extends Controller
      */
     public function store(StoreBranchMenuItemRequest $request, RestaurantBranch $restaurantBranch = null): Response
     {
+        $this->authorize('create', BranchMenuItem::class);
+
         // The request is automatically validated by StoreBranchMenuItemRequest.
         // Access the validated data directly.
         $validated = $request->validated();
@@ -65,6 +69,8 @@ class BranchMenuItemController extends Controller
      */
     public function show(RestaurantBranch $restaurantBranch = null, BranchMenuItem $branchMenuItem): Response
     {
+        $this->authorize('view', $branchMenuItem);
+
         // If a restaurant branch is provided (nested resource), ensure the branch menu item belongs to it.
         if ($restaurantBranch && $branchMenuItem->restaurant_branch_id !== $restaurantBranch->id) {
             abort(404); // Not Found if the branch menu item does not belong to the specified restaurant branch.
@@ -79,6 +85,8 @@ class BranchMenuItemController extends Controller
      */
     public function update(UpdateBranchMenuItemRequest $request, RestaurantBranch $restaurantBranch = null, BranchMenuItem $branchMenuItem): Response
     {
+        $this->authorize('update', $branchMenuItem);
+
         // If a restaurant branch is provided (nested resource), ensure the branch menu item belongs to it.
         if ($restaurantBranch && $branchMenuItem->restaurant_branch_id !== $restaurantBranch->id) {
             abort(404); // Not Found if the branch menu item does not belong to the specified restaurant branch.
@@ -100,6 +108,8 @@ class BranchMenuItemController extends Controller
      */
     public function destroy(RestaurantBranch $restaurantBranch = null, BranchMenuItem $branchMenuItem): Response
     {
+        $this->authorize('delete', $branchMenuItem);
+
         // If a restaurant branch is provided (nested resource), ensure the branch menu item belongs to it.
         if ($restaurantBranch && $branchMenuItem->restaurant_branch_id !== $restaurantBranch->id) {
             abort(404); // Not Found if the branch menu item does not belong to the specified restaurant branch.

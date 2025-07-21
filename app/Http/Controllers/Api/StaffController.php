@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Http\Resources\Api\UserResource;
-use App\Http\Requests\StoreUserRequest;
+use App\Http\Requests\StoreStaffRequest; // Use the new request
 use App\Http\Requests\UpdateUserRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -18,6 +18,8 @@ class StaffController extends Controller
      */
     public function index(Request $request): Response
     {
+        $this->authorize('viewAny', User::class);
+
         // Define the number of items per page, with a default of 15 and a maximum of 100.
         $perPage = $request->input('per_page', 15);
         $perPage = min($perPage, 100);
@@ -29,9 +31,11 @@ class StaffController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreUserRequest $request): Response
+    public function store(StoreStaffRequest $request): Response // Use StoreStaffRequest
     {
-        // The request is automatically validated by StoreUserRequest.
+        $this->authorize('create', User::class);
+
+        // The request is automatically validated by StoreStaffRequest.
         // Access the validated data directly.
         $validated = $request->validated();
 
@@ -39,6 +43,8 @@ class StaffController extends Controller
         $validated['password'] = Hash::make($validated['password']);
 
         // Create a new User record (staff) with the validated data.
+        // The role, restaurant_id, restaurant_branch_id, and permissions are now validated
+        // and prepared by StoreStaffRequest.
         $user = User::create($validated);
 
         // Return the newly created user transformed by UserResource
@@ -51,6 +57,8 @@ class StaffController extends Controller
      */
     public function show(User $user): Response
     {
+        $this->authorize('view', $user);
+
         // Return the specified user transformed by UserResource.
         // Laravel's route model binding automatically retrieves the user.
         return response(new UserResource($user));
@@ -61,6 +69,8 @@ class StaffController extends Controller
      */
     public function update(UpdateUserRequest $request, User $user): Response
     {
+        $this->authorize('update', $user);
+
         // The request is automatically validated by UpdateUserRequest.
         // Access the validated data directly.
         $validated = $request->validated();
@@ -82,6 +92,8 @@ class StaffController extends Controller
      */
     public function destroy(User $user): Response
     {
+        $this->authorize('delete', $user);
+
         // Delete the specified user record.
         $user->delete();
 

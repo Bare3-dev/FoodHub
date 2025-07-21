@@ -18,6 +18,8 @@ class CustomerController extends Controller
      */
     public function index(Request $request): Response
     {
+        $this->authorize('viewAny', Customer::class);
+
         // Define the number of items per page, with a default of 15 and a maximum of 100.
         $perPage = $request->input('per_page', 15);
         $perPage = min($perPage, 100);
@@ -31,6 +33,8 @@ class CustomerController extends Controller
      */
     public function store(StoreCustomerRequest $request): Response
     {
+        $this->authorize('create', Customer::class);
+
         // The request is automatically validated by StoreCustomerRequest.
         // Access the validated data directly.
         $validated = $request->validated();
@@ -51,6 +55,8 @@ class CustomerController extends Controller
      */
     public function show(Customer $customer): Response
     {
+        $this->authorize('view', $customer);
+
         // Return the specified customer transformed by CustomerResource.
         // Laravel's route model binding automatically retrieves the customer.
         return response(new CustomerResource($customer));
@@ -61,6 +67,8 @@ class CustomerController extends Controller
      */
     public function update(UpdateCustomerRequest $request, Customer $customer): Response
     {
+        $this->authorize('update', $customer);
+
         // The request is automatically validated by UpdateCustomerRequest.
         // Access the validated data directly.
         $validated = $request->validated();
@@ -82,6 +90,8 @@ class CustomerController extends Controller
      */
     public function destroy(Customer $customer): Response
     {
+        $this->authorize('delete', $customer);
+
         // Delete the specified customer record.
         $customer->delete();
 

@@ -18,6 +18,8 @@ class RestaurantController extends Controller
      */
     public function index(Request $request): Response
     {
+        $this->authorize('viewAny', Restaurant::class);
+
         // Define the number of items per page, with a default of 15 and a maximum of 100.
         // This allows clients to control pagination size while preventing abuse.
         $perPage = $request->input('per_page', 15);
@@ -33,6 +35,8 @@ class RestaurantController extends Controller
      */
     public function store(StoreRestaurantRequest $request): Response
     {
+        $this->authorize('create', Restaurant::class);
+
         // The request is automatically validated by StoreRestaurantRequest.
         // Access the validated data directly.
         $validated = $request->validated();
@@ -50,6 +54,8 @@ class RestaurantController extends Controller
      */
     public function show(Restaurant $restaurant): Response
     {
+        $this->authorize('view', $restaurant);
+
         // Return the specified restaurant transformed by RestaurantResource.
         // Laravel's route model binding automatically retrieves the restaurant.
         return response(new RestaurantResource($restaurant));
@@ -60,6 +66,8 @@ class RestaurantController extends Controller
      */
     public function update(UpdateRestaurantRequest $request, Restaurant $restaurant): Response
     {
+        $this->authorize('update', $restaurant);
+
         // The request is automatically validated by UpdateRestaurantRequest.
         // Access the validated data directly.
         $validated = $request->validated();
@@ -76,6 +84,8 @@ class RestaurantController extends Controller
      */
     public function destroy(Restaurant $restaurant): Response
     {
+        $this->authorize('delete', $restaurant);
+
         // Delete the specified restaurant record.
         $restaurant->delete();
 
