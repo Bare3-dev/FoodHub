@@ -3,6 +3,9 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 
+// Debug: log every request URI received by the application
+\Log::info('public/index.php received request', ['uri' => $_SERVER['REQUEST_URI'] ?? null]);
+
 define('LARAVEL_START', microtime(true));
 
 // Determine if the application is in maintenance mode...

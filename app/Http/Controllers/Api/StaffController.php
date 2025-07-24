@@ -18,6 +18,7 @@ class StaffController extends Controller
      */
     public function index(Request $request): Response
     {
+        \Log::info('StaffController@index called');
         $this->authorize('viewAny', User::class);
 
         // Define the number of items per page, with a default of 15 and a maximum of 100.

@@ -20,20 +20,24 @@ class RestaurantFactory extends Factory
         
         return [
             'name' => $this->faker->company() . ' Restaurant',
+            'slug' => $this->faker->unique()->slug(3),
             'description' => $this->faker->paragraph(3),
             'cuisine_type' => $this->faker->randomElement($cuisineTypes),
             'phone' => $this->faker->phoneNumber(),
             'email' => $this->faker->companyEmail(),
             'website' => $this->faker->url(),
             'logo_url' => $this->faker->imageUrl(300, 300, 'food'),
-            'banner_url' => $this->faker->imageUrl(800, 400, 'restaurant'),
-            'average_rating' => $this->faker->randomFloat(2, 3.0, 5.0),
-            'total_reviews' => $this->faker->numberBetween(10, 1000),
-            'is_active' => $this->faker->boolean(90),
-            'delivery_fee' => $this->faker->randomFloat(2, 2.99, 9.99),
-            'minimum_order' => $this->faker->randomFloat(2, 15.00, 35.00),
-            'estimated_delivery_time' => $this->faker->numberBetween(20, 60),
-            'settings' => json_encode([
+            'cover_image_url' => $this->faker->imageUrl(800, 400, 'restaurant'),
+            'business_hours' => [
+                'monday' => ['open' => '09:00', 'close' => '22:00'],
+                'tuesday' => ['open' => '09:00', 'close' => '22:00'],
+                'wednesday' => ['open' => '09:00', 'close' => '22:00'],
+                'thursday' => ['open' => '09:00', 'close' => '22:00'],
+                'friday' => ['open' => '09:00', 'close' => '23:00'],
+                'saturday' => ['open' => '10:00', 'close' => '23:00'],
+                'sunday' => ['open' => '10:00', 'close' => '21:00']
+            ],
+            'settings' => [
                 'accepts_cash' => $this->faker->boolean(80),
                 'accepts_card' => true,
                 'max_delivery_distance' => $this->faker->numberBetween(5, 15),
@@ -42,7 +46,11 @@ class RestaurantFactory extends Factory
                     'lunch' => ['start' => '11:30', 'end' => '14:00'],
                     'dinner' => ['start' => '17:30', 'end' => '21:00']
                 ]
-            ]),
+            ],
+            'status' => $this->faker->randomElement(['active', 'inactive', 'suspended']),
+            'commission_rate' => $this->faker->randomFloat(2, 5.00, 20.00),
+            'is_featured' => $this->faker->boolean(20),
+            'verified_at' => $this->faker->boolean(80) ? $this->faker->dateTimeBetween('-1 year', 'now') : null,
             'created_at' => $this->faker->dateTimeBetween('-3 years', '-1 year'),
         ];
     }

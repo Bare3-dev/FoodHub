@@ -52,6 +52,7 @@ class Kernel extends HttpKernel
      * @var array<string, class-string|string>
      */
     protected $routeMiddleware = [
+        'debug' => \App\Http\Middleware\DebugMiddleware::class,
         'role.permission' => \App\Http\Middleware\RoleAndPermissionMiddleware::class,
         'advanced.rate.limit' => \App\Http\Middleware\AdvancedRateLimitMiddleware::class,
         'api.cors' => \App\Http\Middleware\ApiCorsMiddleware::class,

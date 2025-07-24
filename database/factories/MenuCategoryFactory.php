@@ -23,6 +23,7 @@ class MenuCategoryFactory extends Factory
         ];
 
         return [
+            'restaurant_id' => \App\Models\Restaurant::factory(),
             'name' => $this->faker->unique()->randomElement($categories),
             'description' => $this->faker->sentence(8),
             'sort_order' => $this->faker->numberBetween(1, 20),

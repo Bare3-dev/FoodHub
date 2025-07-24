@@ -15,7 +15,8 @@ class LoyaltyProgramPolicy
     {
         return $user->isSuperAdmin() || 
                ($user->hasRole('RESTAURANT_OWNER') && !is_null($user->restaurant_id)) ||
-               $user->hasRole('CUSTOMER'); // Customers can see available loyalty programs
+               ($user->hasRole('CUSTOMER_SERVICE') && $user->hasPermission('loyalty-program:manage')) || // Customer service can manage loyalty programs
+               ($user->hasRole('CASHIER') && $user->hasPermission('loyalty-program:apply-points')); // Cashiers can apply points
     }
 
     /**
@@ -25,7 +26,8 @@ class LoyaltyProgramPolicy
     {
         return $user->isSuperAdmin() || 
                ($user->hasRole('RESTAURANT_OWNER') && $user->restaurant_id === $loyaltyProgram->restaurant_id) ||
-               ($user->hasRole('CUSTOMER') && $loyaltyProgram->is_active); // Customers can view active programs
+               ($user->hasRole('CUSTOMER_SERVICE') && $user->hasPermission('loyalty-program:manage')) || // Customer service can manage
+               ($user->hasRole('CASHIER') && $user->hasPermission('loyalty-program:apply-points')); // Cashiers can apply points
     }
 
     /**

@@ -30,6 +30,7 @@ class AuthServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        $this->registerPolicies();
+        \Illuminate\Support\Facades\Gate::policy(\App\Models\User::class, \App\Policies\StaffPolicy::class);
     }
 } 

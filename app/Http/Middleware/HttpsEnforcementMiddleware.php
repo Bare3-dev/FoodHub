@@ -56,8 +56,8 @@ class HttpsEnforcementMiddleware
      */
     private function shouldEnforceHttps(Request $request): bool
     {
-        // Skip HTTPS enforcement in local development
-        if (app()->environment('local', 'testing')) {
+        // Skip HTTPS enforcement in local development (unless forced for testing)
+        if (app()->environment('local', 'testing') && !config('app.force_https_in_testing', false)) {
             return false;
         }
 

@@ -18,11 +18,18 @@ class RoleAndPermissionMiddleware
      */
     public function handle(Request $request, Closure $next, ?string $roles = null, ?string $permissions = null): Response
     {
+        \Log::info('RoleAndPermissionMiddleware@handle called', ['uri' => $request->getRequestUri()]);
         if (!Auth::check()) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
         $user = Auth::user();
+
+        // Always allow SUPER_ADMIN to bypass all checks
+        if ($user->role === 'SUPER_ADMIN') {
+            \Log::info('RoleAndPermissionMiddleware SUPER_ADMIN bypass', ['uri' => $request->getRequestUri()]);
+            return $next($request);
+        }
 
         // Handle Super Admin bypass
         if ($user->isSuperAdmin()) {
@@ -38,7 +45,7 @@ class RoleAndPermissionMiddleware
         if ($hasRole && $hasPermission) {
             return $next($request);
         }
-
+        
         return response()->json(['message' => 'This action is unauthorized.'], 403);
     }
 }

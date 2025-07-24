@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use App\Models\SecurityLog;
+use Illuminate\Contracts\Validation\Validator;
 
 class LoginRequest extends FormRequest
 {
@@ -44,8 +46,56 @@ class LoginRequest extends FormRequest
         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
 
+            // Log failed login attempt
+            SecurityLog::logEvent('login_failed', null, null, null, null, [
+                'email' => $this->input('email')
+            ]);
+
+            // For API requests, use consistent JSON structure
+            if ($this->expectsJson()) {
+                $validator = validator([], []);
+                $validator->errors()->add('email', __('auth.failed'));
+                
+                $response = response()->json([
+                    'success' => false,
+                    'message' => 'The provided data is invalid.',
+                    'errors' => $validator->errors(),
+                ], 422);
+                
+                throw new ValidationException($validator, $response);
+            }
+
             throw ValidationException::withMessages([
                 'email' => __('auth.failed'),
+            ]);
+        }
+
+        // Retrieve the authenticated user to check their status
+        $user = Auth::user();
+
+        // Check if the user is active
+        if ($user && $user->status === 'inactive') {
+            Auth::logout(); // Log out the user immediately if inactive
+            RateLimiter::hit($this->throttleKey()); // Treat as a failed attempt for rate limiting
+
+            // For API requests, return 403 with proper JSON structure  
+            if ($this->expectsJson()) {
+                $validator = validator([], []);
+                $validator->errors()->add('email', __('auth.inactive_account'));
+                
+                $response = response()->json([
+                    'success' => false,
+                    'message' => __('auth.inactive_account'),
+                    'errors' => $validator->errors(),
+                ], 403);
+                
+                throw new ValidationException($validator, $response);
+            }
+            
+
+            // For web requests, throw ValidationException with inactive account message
+            throw ValidationException::withMessages([
+                'email' => __('auth.inactive_account'),
             ]);
         }
 
@@ -81,5 +131,29 @@ class LoginRequest extends FormRequest
     public function throttleKey(): string
     {
         return Str::transliterate(Str::lower($this->input('email')).'|'.$this->ip());
+    }
+
+    /**
+     * Handle a failed validation attempt.
+     *
+     * @param  \Illuminate\Contracts\Validation\Validator  $validator
+     * @return void
+     *
+     * @throws \Illuminate\Validation\ValidationException
+     */
+    protected function failedValidation(Validator $validator)
+    {
+        // For API requests, return consistent JSON structure
+        if ($this->expectsJson()) {
+            $response = response()->json([
+                'success' => false,
+                'message' => 'The provided data is invalid.',
+                'errors' => $validator->errors(),
+            ], 422);
+
+            throw new ValidationException($validator, $response);
+        }
+
+        parent::failedValidation($validator);
     }
 }

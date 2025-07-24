@@ -14,7 +14,8 @@ class RestaurantBranchPolicy
     public function viewAny(User $user): bool
     {
         return $user->isSuperAdmin() || 
-               ($user->hasRole('RESTAURANT_OWNER') && !is_null($user->restaurant_id));
+               ($user->hasRole('RESTAURANT_OWNER') && !is_null($user->restaurant_id)) ||
+               ($user->hasRole('BRANCH_MANAGER') && !is_null($user->restaurant_branch_id));
     }
 
     /**

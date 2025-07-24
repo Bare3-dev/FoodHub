@@ -33,9 +33,7 @@ class MenuCategoryPolicy
      */
     public function create(User $user): bool
     {
-        return $user->isSuperAdmin() || 
-               $user->hasRole('RESTAURANT_OWNER') ||
-               ($user->hasRole('BRANCH_MANAGER') && $user->branch && !is_null($user->branch->restaurant_id));
+        return $user->isSuperAdmin() || $user->hasRole('RESTAURANT_OWNER') || ($user->hasRole('BRANCH_MANAGER') && $user->restaurant_branch_id !== null && $user->restaurant_id !== null);
     }
 
     /**

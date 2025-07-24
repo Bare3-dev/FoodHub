@@ -91,6 +91,11 @@ final class User extends Authenticatable
      */
     public function hasPermission(string $permission): bool
     {
+        // Super admins have all permissions
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+        
         return in_array($permission, $this->permissions, true);
     }
 
@@ -108,6 +113,39 @@ final class User extends Authenticatable
     public function isRestaurantOwner(): bool
     {
         return $this->hasRole('RESTAURANT_OWNER') || $this->isSuperAdmin();
+    }
+
+    /**
+     * Check if the user can access a specific role (role hierarchy).
+     */
+    public function canAccessRole(string $targetRole): bool
+    {
+        // Define role hierarchy (higher index = higher authority)
+        $roleHierarchy = [
+            'CUSTOMER' => 0,
+            'DRIVER' => 0, 
+            'KITCHEN_STAFF' => 1,
+            'CASHIER' => 2,
+            'BRANCH_MANAGER' => 3,
+            'DELIVERY_MANAGER' => 3,
+            'CUSTOMER_SERVICE' => 3,
+            'RESTAURANT_OWNER' => 4,
+            'SUPER_ADMIN' => 5,
+        ];
+
+        $currentRoleLevel = $roleHierarchy[$this->role] ?? 0;
+        $targetRoleLevel = $roleHierarchy[$targetRole] ?? 0;
+
+        // Users can access roles at their level or below, but not above
+        return $currentRoleLevel >= $targetRoleLevel;
+    }
+
+    /**
+     * Scope a query to only include users with a specific role.
+     */
+    public function scopeRole($query, string $role)
+    {
+        return $query->where('role', $role);
     }
 
     /**

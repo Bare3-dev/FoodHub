@@ -11,8 +11,7 @@ class StoreMenuCategoryRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // For now, allow all requests. Authorization logic will be fully implemented in Sprint 5.
-        return true;
+        return $this->user()->can('create', \App\Models\MenuCategory::class);
     }
 
     /**
@@ -24,6 +23,7 @@ class StoreMenuCategoryRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255|unique:menu_categories',
+            'restaurant_id' => 'required|exists:restaurants,id',
             'description' => 'nullable|string',
             'sort_order' => 'nullable|integer|min:0',
             'is_active' => 'boolean',

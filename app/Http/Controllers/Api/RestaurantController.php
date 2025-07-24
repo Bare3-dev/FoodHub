@@ -18,16 +18,22 @@ class RestaurantController extends Controller
      */
     public function index(Request $request): Response
     {
-        $this->authorize('viewAny', Restaurant::class);
+        // No authorization needed for public restaurant browsing
+        // Admin users can see all restaurants, public users see active restaurants only
 
         // Define the number of items per page, with a default of 15 and a maximum of 100.
         // This allows clients to control pagination size while preventing abuse.
         $perPage = $request->input('per_page', 15);
         $perPage = min($perPage, 100);
 
+        // For public access, only show active restaurants
+        $query = auth()->check() && auth()->user()->isSuperAdmin() 
+            ? Restaurant::query()  // Admin sees all
+            : Restaurant::active(); // Public sees only active
+
         // Retrieve restaurants with pagination and transform them using RestaurantResource collection.
         // The `paginate` method automatically handles the SQL LIMIT and OFFSET and provides pagination metadata.
-        return response(RestaurantResource::collection(Restaurant::paginate($perPage)));
+        return response(RestaurantResource::collection($query->paginate($perPage)));
     }
 
     /**

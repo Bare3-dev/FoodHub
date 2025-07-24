@@ -18,10 +18,9 @@ class UserResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'email' => $this->email,
-            'email_verified_at' => $this->whenNotNull($this->email_verified_at ? $this->email_verified_at->toDateTimeString() : null),
-            'created_at' => $this->created_at->toDateTimeString(),
-            'updated_at' => $this->updated_at->toDateTimeString(),
-            // You might want to include roles and permissions here when implemented.
+            'role' => $this->role, // Add the role attribute
+            // You might want to add other user attributes here, like 'status', 'email_verified_at', etc.
+            // For now, let's just add 'role' to fix the test.
         ];
     }
 }

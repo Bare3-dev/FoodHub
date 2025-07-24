@@ -13,9 +13,10 @@ class CustomerPolicy
      */
     public function viewAny(User $user): bool
     {
-        // SUPER_ADMIN and CUSTOMER_SERVICE can view any customer
+        // SUPER_ADMIN, CUSTOMER_SERVICE, and CASHIER can view customers
         return $user->isSuperAdmin() || 
-               $user->hasRole('CUSTOMER_SERVICE');
+               $user->hasRole('CUSTOMER_SERVICE') ||
+               $user->hasRole('CASHIER');
     }
 
     /**

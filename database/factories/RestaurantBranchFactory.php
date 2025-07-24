@@ -20,6 +20,7 @@ class RestaurantBranchFactory extends Factory
         return [
             'restaurant_id' => Restaurant::factory(),
             'name' => $this->faker->streetName() . ' Branch',
+            'slug' => $this->faker->unique()->slug(2),
             'address' => $this->faker->streetAddress(),
             'city' => $this->faker->city(),
             'state' => $this->faker->state(),
@@ -28,8 +29,9 @@ class RestaurantBranchFactory extends Factory
             'latitude' => $this->faker->latitude(25, 49), // US bounds
             'longitude' => $this->faker->longitude(-125, -66), // US bounds
             'phone' => $this->faker->phoneNumber(),
-            'email' => $this->faker->email(),
-            'opening_hours' => json_encode([
+            'manager_name' => $this->faker->name(),
+            'manager_phone' => $this->faker->phoneNumber(),
+            'operating_hours' => [
                 'monday' => ['open' => '10:00', 'close' => '22:00'],
                 'tuesday' => ['open' => '10:00', 'close' => '22:00'],
                 'wednesday' => ['open' => '10:00', 'close' => '22:00'],
@@ -37,8 +39,8 @@ class RestaurantBranchFactory extends Factory
                 'friday' => ['open' => '10:00', 'close' => '23:00'],
                 'saturday' => ['open' => '09:00', 'close' => '23:00'],
                 'sunday' => ['open' => '11:00', 'close' => '21:00']
-            ]),
-            'delivery_zones' => json_encode([
+            ],
+            'delivery_zones' => [
                 [
                     'name' => 'Zone 1',
                     'radius' => 5,
@@ -49,13 +51,15 @@ class RestaurantBranchFactory extends Factory
                     'radius' => 10,
                     'fee' => 4.99
                 ]
-            ]),
-            'is_active' => $this->faker->boolean(95),
-            'capacity' => $this->faker->numberBetween(20, 150),
-            'features' => json_encode($this->faker->randomElements([
-                'parking', 'wifi', 'outdoor_seating', 'takeout', 'delivery', 
-                'wheelchair_accessible', 'kids_menu', 'live_music'
-            ], $this->faker->numberBetween(2, 5))),
+            ],
+            'delivery_fee' => $this->faker->randomFloat(2, 0, 5),
+            'minimum_order_amount' => $this->faker->randomFloat(2, 10, 25),
+            'estimated_delivery_time' => $this->faker->numberBetween(20, 45),
+            'status' => $this->faker->randomElement(['active', 'inactive', 'temporarily_closed']),
+            'accepts_online_orders' => $this->faker->boolean(95),
+            'accepts_delivery' => $this->faker->boolean(85),
+            'accepts_pickup' => $this->faker->boolean(95),
+            'settings' => [],
             'created_at' => $this->faker->dateTimeBetween('-2 years', 'now'),
         ];
     }

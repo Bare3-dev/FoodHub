@@ -32,17 +32,13 @@ class MenuCategoryController extends Controller
      */
     public function store(StoreMenuCategoryRequest $request): Response
     {
+        // Policy check for authorization before creating the resource
         $this->authorize('create', MenuCategory::class);
 
-        // The request is automatically validated by StoreMenuCategoryRequest.
-        // Access the validated data directly.
-        $validated = $request->validated();
+        // Create the MenuCategory with validated data
+        $menuCategory = MenuCategory::create($request->validated());
 
-        // Create a new MenuCategory record with the validated data.
-        $menuCategory = MenuCategory::create($validated);
-
-        // Return the newly created menu category transformed by MenuCategoryResource
-        // with a 201 Created status code.
+        // Return a JSON response with the created resource and a 201 status code
         return response(new MenuCategoryResource($menuCategory), 201);
     }
 

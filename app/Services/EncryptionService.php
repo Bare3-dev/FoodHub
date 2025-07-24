@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Exception;
+use App\Exceptions\SecurityException; // Import the custom exception
+use Illuminate\Support\Str;
 
 /**
  * Encryption Service for Sensitive Data
@@ -35,12 +37,125 @@ class EncryptionService
         'bank_account_details',
         'personal_notes',
         'loyalty_card_number',
+        'credit_card', // Added for direct PII encryption
     ];
 
     /**
-     * Encrypt sensitive data for database storage
+     * General purpose encryption
+     * @throws \App\Exceptions\SecurityException
      */
-    public function encryptSensitiveData(array $data, string $context = 'general'): array
+    public function encrypt(string $value): string
+    {
+        try {
+            return Crypt::encryptString($value);
+        } catch (Exception $e) {
+            Log::error('General encryption failed', ['error' => $e->getMessage()]);
+            throw new SecurityException('Failed to encrypt data');
+        }
+    }
+
+    /**
+     * General purpose decryption
+     * @throws \App\Exceptions\SecurityException
+     */
+    public function decrypt(string $encryptedValue): string
+    {
+        try {
+            return Crypt::decryptString($encryptedValue);
+        } catch (Exception $e) {
+            Log::error('General decryption failed', ['error' => $e->getMessage()]);
+            throw new SecurityException('Failed to decrypt data');
+        }
+    }
+
+    /**
+     * Encrypt sensitive PII data directly (e.g., a single phone number)
+     * @throws \App\Exceptions\SecurityException
+     */
+    public function encryptPII(string $value, string $type): string
+    {
+        if (!in_array($type, self::SENSITIVE_FIELDS) && $type !== 'email') {
+            throw new SecurityException('Invalid PII type');
+        }
+        return $this->encryptValue($value, $type);
+    }
+
+    /**
+     * Decrypt sensitive PII data directly
+     * @throws \App\Exceptions\SecurityException
+     */
+    public function decryptPII(string $encryptedValue, string $type): string
+    {
+        if (!in_array($type, self::SENSITIVE_FIELDS) && $type !== 'email') {
+            throw new SecurityException('Invalid PII type');
+        }
+        $decrypted = $this->decryptValue($encryptedValue, $type);
+        if (is_null($decrypted)) {
+            throw new SecurityException('Failed to decrypt PII data');
+        }
+        return $decrypted;
+    }
+
+    /**
+     * Generate a secure hash for data (e.g., passwords)
+     */
+    public function hash(string $value): string
+    {
+        return Hash::make($value);
+    }
+
+    /**
+     * Verify a hash against a value
+     */
+    public function verifyHash(string $value, string $hashedValue): bool
+    {
+        return Hash::check($value, $hashedValue);
+    }
+
+    /**
+     * Generate a secure, random token
+     */
+    public function generateSecureToken(int $length = 64): string
+    {
+        return Str::random($length);
+    }
+
+    /**
+     * Mask sensitive data for display purposes (for a single value)
+     */
+    public function maskSensitiveData(string $value, string $field): string
+    {
+        return $this->maskValue($value, $field);
+    }
+
+    /**
+     * Safely compare two strings to prevent timing attacks
+     */
+    public function safeStringCompare(string $knownString, string $userString): bool
+    {
+        return hash_equals($knownString, $userString);
+    }
+
+    /**
+     * Generate an HMAC signature for data integrity
+     */
+    public function generateHmac(string $data, string $key): string
+    {
+        return hash_hmac('sha256', $data, $key);
+    }
+
+    /**
+     * Verify an HMAC signature
+     */
+    public function verifyHmac(string $data, string $signature, string $key): bool
+    {
+        return hash_equals($this->generateHmac($data, $key), $signature);
+    }
+
+    /**
+     * Encrypt sensitive data for database storage (array version)
+     */
+    public function encryptSensitiveDataArray(array $data, string $context = 'general'): array
     {
         $encrypted = [];
         $encryptedFields = [];
@@ -57,7 +172,7 @@ class EncryptionService
                         'error' => $e->getMessage(),
                         'timestamp' => now()->toISOString(),
                     ]);
-                    throw new Exception("Failed to encrypt sensitive field: {$key}");
+                    throw new SecurityException("Failed to encrypt sensitive field: {$key}");
                 }
             } else {
                 $encrypted[$key] = $value;
@@ -73,9 +188,9 @@ class EncryptionService
     }
 
     /**
-     * Decrypt sensitive data for application use
+     * Decrypt sensitive data for application use (array version)
      */
-    public function decryptSensitiveData(array $data, string $context = 'general'): array
+    public function decryptSensitiveDataArray(array $data, string $context = 'general'): array
     {
         $decrypted = [];
         $decryptedFields = [];
@@ -109,9 +224,9 @@ class EncryptionService
     }
 
     /**
-     * Encrypt payment information with special handling
+     * Encrypt payment information with special handling (array version)
      */
-    public function encryptPaymentData(array $paymentData): array
+    public function encryptPaymentDataArray(array $paymentData): array
     {
         $encrypted = [];
 
@@ -146,9 +261,9 @@ class EncryptionService
     }
 
     /**
-     * Mask sensitive data for display purposes
+     * Mask sensitive data for display purposes (array version)
      */
-    public function maskSensitiveData(array $data): array
+    public function maskSensitiveDataArray(array $data): array
     {
         $masked = [];
 
@@ -213,11 +328,12 @@ class EncryptionService
             
             // Verify context
             if (!str_starts_with($decrypted, $context . ':')) {
-                throw new Exception('Context verification failed');
+                throw new SecurityException('Context verification failed');
             }
             
             return substr($decrypted, strlen($context . ':'));
         } catch (Exception $e) {
+            Log::error('Contextual decryption failed', ['error' => $e->getMessage(), 'context' => $context]);
             return null;
         }
     }
@@ -229,7 +345,23 @@ class EncryptionService
     {
         switch ($field) {
             case 'phone':
-                return preg_replace('/(\d{3})\d{4}(\d{4})/', '$1****$2', $value);
+                // Handle phone numbers with + prefix: +1234567890 -> +123***7890
+                if (str_starts_with($value, '+')) {
+                    return preg_replace('/(\+\d{3})\d{3}(\d{4})/', '$1***$2', $value);
+                }
+                // Handle regular phone numbers: 1234567890 -> 123***7890
+                return preg_replace('/(\d{3})\d{3}(\d{4})/', '$1***$2', $value);
+            
+            case 'credit_card': // Added for direct PII masking
+                // Show first 4 and last 4 digits: 4111111111111111 -> 4111-****-****-1111
+                return substr($value, 0, 4) . '-****-****-' . substr($value, -4);
+            
+            case 'email': // Added for direct PII masking
+                $parts = explode('@', $value);
+                if (count($parts) === 2) {
+                    return substr($parts[0], 0, 1) . str_repeat('*', strlen($parts[0]) - 1) . '@' . $parts[1];
+                }
+                return str_repeat('*', strlen($value));
             
             case 'credit_card_last_four':
                 return '**** **** **** ' . $value;

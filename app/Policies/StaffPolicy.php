@@ -12,9 +12,14 @@ class StaffPolicy
      */
     public function viewAny(User $user): bool
     {
-        // SUPER_ADMIN, RESTAURANT_OWNER, BRANCH_MANAGER can view staff members
-        return $user->isSuperAdmin() || 
-               ($user->hasRole('RESTAURANT_OWNER') && !is_null($user->restaurant_id)) ||
+        \Log::info('StaffPolicy@viewAny', ['user_role' => $user->role, 'is_super_admin' => $user->isSuperAdmin()]);
+        // SUPER_ADMIN can view all staff members
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+        
+        // RESTAURANT_OWNER, BRANCH_MANAGER can view staff members in their scope
+        return ($user->hasRole('RESTAURANT_OWNER') && !is_null($user->restaurant_id)) ||
                ($user->hasRole('BRANCH_MANAGER') && !is_null($user->restaurant_branch_id));
     }
 
@@ -36,9 +41,13 @@ class StaffPolicy
      */
     public function create(User $user): bool
     {
-        // SUPER_ADMIN, RESTAURANT_OWNER, BRANCH_MANAGER can create staff members
-        return $user->isSuperAdmin() || 
-               $user->hasRole('RESTAURANT_OWNER') ||
+        // SUPER_ADMIN can create any staff member
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+        
+        // RESTAURANT_OWNER, BRANCH_MANAGER can create staff members
+        return $user->hasRole('RESTAURANT_OWNER') ||
                $user->hasRole('BRANCH_MANAGER');
     }
 

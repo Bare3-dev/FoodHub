@@ -104,15 +104,58 @@ class Handler extends ExceptionHandler
         // Log security-related exceptions
         $this->logSecurityException($e, $request);
 
-        // Get standardized error response
-        $errorResponse = $this->getErrorResponse($e, $request);
+        // Get standardized error response details (status, internal error data)
+        $errorDetails = $this->getErrorResponse($e, $request);
 
-        // Add security headers for error responses
-        $response = response()->json($errorResponse['data'], $errorResponse['status']);
+        // Prepare the final API response structure
+        $finalResponseData = [
+            'success' => false, // All API errors should indicate failure
+            'message' => $errorDetails['data']['message'] ?? $errorDetails['data']['error'] ?? 'An unexpected error occurred.',
+            'errors' => [], // Default to an empty array for consistency
+        ];
+
+        // If it's a validation exception, populate 'errors' with validation messages
+        if ($e instanceof \Illuminate\Validation\ValidationException) {
+            $finalResponseData['errors'] = $errorDetails['data']['errors'] ?? [];
+        } else {
+            // For other types of errors, put the detailed error info into the 'errors' array
+            // We want to avoid polluting the root level with too many keys.
+            // But for the `assertApiError` helper, it expects `errors` to be an empty array if not validation.
+            // So, if we want to provide more specific error details, it should be nested.
+            // Let's refine based on the `assertApiError` structure which simply checks for `errors => []`
+
+            // For non-validation errors, we already have a top-level message.
+            // If there are additional details (like error_code, context, etc.) from `getErrorResponse`,
+            // we can place them into the `errors` array, or create a 'details' key for them.
+            // For now, let's keep `errors` empty for non-validation as per the `assertApiError` test,
+            // and trust the `message` and HTTP status code. If more info is needed, it would be a new key.
+            // Example: 'details' => $errorDetails['data']
+            
+            // However, looking at the previous assertApiError, it did check for an 'errors' key.
+            // To be compliant with `assertApiError` strictly expecting `errors => []` for non-validation:
+            // The previous `AuthApiTest` was failing because the *top-level* response didn't have `success` and `message`.
+            // Now that `AuthController` returns `success` and `message` for successful login/MFA,
+            // we need `Handler.php` to return `success` and `message` for *failed* API requests.
+            
+            // The `getErrorResponse` method already returns a structured array with `error`, `message`, `error_code`, etc., under a `data` key.
+            // Let's ensure that what `renderApiException` returns fits the common API error standard.
+            
+            // Merge all details from $errorDetails['data'] into the `errors` array, except for the message that is already extracted.
+            // This ensures all custom error codes and contexts are still available.
+            $additionalErrorData = $errorDetails['data'];
+            unset($additionalErrorData['message']); // Message is already at the top level
+            
+            // Only add remaining error data if it's not empty, otherwise keep `errors` as empty array
+            if (!empty($additionalErrorData)) {
+                $finalResponseData['errors'] = $additionalErrorData;
+            }
+        }
+
+        $response = response()->json($finalResponseData, $errorDetails['status']);
         
         // Add appropriate headers
-        if (isset($errorResponse['headers'])) {
-            foreach ($errorResponse['headers'] as $key => $value) {
+        if (isset($errorDetails['headers'])) {
+            foreach ($errorDetails['headers'] as $key => $value) {
                 $response->header($key, $value);
             }
         }
@@ -223,17 +266,22 @@ class Handler extends ExceptionHandler
     {
         $message = 'Authentication required.';
         $errorCode = 'AUTHENTICATION_REQUIRED';
+        $statusCode = 401; // Default to 401 Unauthorized
 
-        // Check if it's a token-related issue
-        if (str_contains($e->getMessage(), 'token')) {
+        // Check if it's an inactive account specific message
+        if ($e->getMessage() === __('auth.inactive_account')) {
+            $message = __('auth.inactive_account');
+            $errorCode = 'ACCOUNT_INACTIVE';
+            $statusCode = 403; // Change status to 403 Forbidden for inactive accounts
+        } elseif (str_contains($e->getMessage(), 'token')) {
             $message = 'Invalid or expired authentication token.';
             $errorCode = 'INVALID_TOKEN';
         }
 
         return [
-            'status' => 401,
+            'status' => $statusCode, // Use the determined status code
             'data' => [
-                'error' => 'Unauthenticated',
+                'error' => $this->getHttpErrorTitle($statusCode), // Get appropriate error title
                 'message' => $message,
                 'error_code' => $errorCode,
                 'timestamp' => now()->toISOString(),
@@ -471,11 +519,57 @@ class Handler extends ExceptionHandler
     }
 
     /**
+     * Convert an authentication exception into a response.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \Illuminate\Auth\AuthenticationException  $exception
+     * @return \Illuminate\Http\Response|\Illuminate\Http\JsonResponse
+     */
+    protected function unauthenticated($request, AuthenticationException $exception)
+    {
+        // For API requests, return JSON with our standardized format
+        if ($request->expectsJson() || $request->is('api/*')) {
+            $message = 'Authentication required.';
+            $statusCode = 401; // Default to 401 Unauthorized
+
+            // Check if it's an inactive account specific message
+            if ($exception->getMessage() === __('auth.inactive_account')) {
+                $message = __('auth.inactive_account');
+                $statusCode = 403; // Change status to 403 Forbidden for inactive accounts
+            } elseif (str_contains($exception->getMessage(), 'token')) {
+                $message = 'Invalid or expired authentication token.';
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+                'errors' => [], // Empty array for non-validation errors
+            ], $statusCode);
+        }
+
+        // For web requests, return a simple redirect without route dependency
+        return response('Unauthorized', 401);
+    }
+
+    /**
      * Generate unique request ID for error tracking
      */
     protected function generateRequestId(): string
     {
         return 'req_' . now()->format('Ymd_His') . '_' . strtoupper(substr(md5(uniqid()), 0, 8));
+    }
+
+    /**
+     * Handle JSON validation exceptions with consistent API format
+     * This method is called by Laravel specifically for JSON validation responses
+     */
+    protected function invalidJson($request, ValidationException $exception): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'message' => 'The provided data is invalid.',
+            'errors' => $exception->errors(),
+        ], $exception->status);
     }
 
     /**

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 final class MenuCategory extends Model
 {
@@ -39,6 +40,23 @@ final class MenuCategory extends Model
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (MenuCategory $menuCategory): void {
+            $baseSlug = Str::slug($menuCategory->name);
+            $slug = $baseSlug;
+            $counter = 1;
+
+            while (self::where('slug', $slug)
+                ->where('restaurant_id', $menuCategory->restaurant_id)
+                ->exists()) {
+                $slug = $baseSlug . '-' . $counter++;
+            }
+
+            $menuCategory->slug = $slug;
+        });
     }
 
     /**
