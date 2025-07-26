@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: foodhub_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: foodhub_api
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - foodhub_network
+
+  # Redis for caching and queues
+  redis:
+    image: redis:7-alpine
+    container_name: foodhub_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - foodhub_network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  foodhub_network:
+    driver: bridge 

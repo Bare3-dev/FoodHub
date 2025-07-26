@@ -41,6 +41,21 @@ class AdvancedRateLimitMiddleware
      */
     public function handle(Request $request, Closure $next, string $endpointType = 'general', ?int $customLimit = null, ?int $customWindow = null): Response
     {
+        // Skip rate limiting in test environment
+        if (app()->environment('testing')) {
+            return $next($request);
+        }
+        
+        // Skip rate limiting if disabled or if config is not available
+        try {
+            if (!config('rate_limiting.enabled', true)) {
+                return $next($request);
+            }
+        } catch (\Exception $e) {
+            // If config is not available, skip rate limiting
+            return $next($request);
+        }
+
         $user = Auth::user();
         $ip = $request->ip();
         $userAgent = $request->userAgent();

@@ -1,0 +1,11 @@
+# Copy these lines to your .env file to use SQLite instead of PostgreSQL
+
+# Database Configuration for SQLite
+DB_CONNECTION=sqlite
+DB_DATABASE=database/database.sqlite
+
+# Comment out or remove these PostgreSQL lines:
+# DB_HOST=127.0.0.1
+# DB_PORT=5432
+# DB_USERNAME=postgres
+# DB_PASSWORD=postgres123 
