@@ -40,6 +40,10 @@ class UserFactory extends Factory
             'phone' => fake()->phoneNumber(),
             'is_email_verified' => fake()->boolean(80),
             'remember_token' => Str::random(10),
+            'role' => 'CUSTOMER_SERVICE',
+            'permissions' => [],
+            'status' => 'active',
+            'is_email_verified' => true,
         ];
     }
 
