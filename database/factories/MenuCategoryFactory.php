@@ -22,8 +22,12 @@ class MenuCategoryFactory extends Factory
             'Sandwiches', 'Burgers', 'Asian', 'Mexican', 'Italian', 'Breakfast'
         ];
 
+        $name = $this->faker->unique()->randomElement($categories);
+        
         return [
-            'name' => $this->faker->unique()->randomElement($categories),
+            'restaurant_id' => \App\Models\Restaurant::factory(),
+            'name' => $name,
+            'slug' => \Illuminate\Support\Str::slug($name),
             'description' => $this->faker->sentence(8),
             'sort_order' => $this->faker->numberBetween(1, 20),
             'is_active' => $this->faker->boolean(95),

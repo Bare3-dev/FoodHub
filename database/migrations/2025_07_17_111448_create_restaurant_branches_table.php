@@ -27,6 +27,7 @@ return new class extends Migration
             $table->decimal('latitude', 10, 8)->nullable();
             $table->decimal('longitude', 11, 8)->nullable();
             $table->string('phone')->nullable();
+            $table->string('email')->nullable();
             $table->string('manager_name')->nullable();
             $table->string('manager_phone')->nullable();
             $table->jsonb('operating_hours'); // Branch-specific operating hours

@@ -11,8 +11,14 @@ class MenuCategoryPolicy
     /**
      * Determine whether the user can view any models.
      */
-    public function viewAny(User $user): bool
+    public function viewAny($user = null): bool
     {
+        \Log::info('MenuCategoryPolicy@viewAny', ['user' => $user]);
+        // Allow public access for public endpoints
+        if (!$user) {
+            return true;
+        }
+        
         return $user->isSuperAdmin() || 
                ($user->hasRole('RESTAURANT_OWNER') && !is_null($user->restaurant_id)) ||
                ($user->hasRole('BRANCH_MANAGER') && $user->branch && !is_null($user->branch->restaurant_id));
@@ -21,8 +27,14 @@ class MenuCategoryPolicy
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, MenuCategory $menuCategory): bool
+    public function view($user, MenuCategory $menuCategory): bool
     {
+        \Log::info('MenuCategoryPolicy@view', ['user' => $user]);
+        // Allow public access for public endpoints
+        if (!$user) {
+            return true;
+        }
+        
         return $user->isSuperAdmin() || 
                ($user->hasRole('RESTAURANT_OWNER') && $user->restaurant_id === $menuCategory->restaurant_id) ||
                ($user->hasRole('BRANCH_MANAGER') && $user->branch && $user->branch->restaurant_id === $menuCategory->restaurant_id);

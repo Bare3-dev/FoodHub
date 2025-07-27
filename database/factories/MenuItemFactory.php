@@ -24,12 +24,16 @@ class MenuItemFactory extends Factory
             'Greek Salad', 'Clam Chowder', 'Beef Stroganoff', 'Chicken Quesadilla'
         ];
 
+        $name = $this->faker->randomElement($foodItems) . ' ' . $this->faker->unique()->word();
+        
         return [
-            'category_id' => MenuCategory::factory(),
-            'name' => $this->faker->randomElement($foodItems),
+            'restaurant_id' => \App\Models\Restaurant::factory(),
+            'menu_category_id' => MenuCategory::factory(),
+            'name' => $name,
+            'slug' => \Illuminate\Support\Str::slug($name),
             'description' => $this->faker->paragraph(2),
             'price' => $this->faker->randomFloat(2, 8.99, 28.99),
-            'prep_time' => $this->faker->numberBetween(10, 45),
+            'preparation_time' => $this->faker->numberBetween(10, 45),
             'calories' => $this->faker->numberBetween(250, 800),
             'ingredients' => json_encode($this->faker->randomElements([
                 'chicken', 'beef', 'pork', 'fish', 'cheese', 'tomatoes', 'onions',
@@ -41,7 +45,7 @@ class MenuItemFactory extends Factory
             'dietary_tags' => json_encode($this->faker->randomElements([
                 'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'low_carb', 'keto'
             ], $this->faker->numberBetween(0, 2))),
-            'image_url' => $this->faker->imageUrl(400, 300, 'food'),
+            'images' => json_encode([$this->faker->imageUrl(400, 300, 'food')]),
             'is_available' => $this->faker->boolean(90),
             'is_featured' => $this->faker->boolean(20),
             'sort_order' => $this->faker->numberBetween(1, 100),

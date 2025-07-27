@@ -28,15 +28,39 @@ class AuthController extends Controller
                 $otpCode = $user->generateEmailOtpCode();
                 Mail::to($user->email)->send(new MfaOtpMail($otpCode, $user->name));
 
-                return response()->json(['message' => 'MFA required', 'mfa_enabled' => true, 'email' => $user->email], 202); // 202 Accepted for MFA pending
+                $tempToken = encrypt([
+                    'user_id' => $user->id,
+                    'expires_at' => now()->addMinutes(5),
+                    'purpose' => 'mfa_verification'
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'MFA required',
+                    'data' => [
+                        'mfa_required' => true,
+                        'temp_token' => $tempToken,
+                        'user_id' => $user->id
+                    ]
+                ], 200);
             } else {
                 $token = $user->createToken('api-token')->plainTextToken;
 
-                return response()->json(['token' => $token, 'user' => new UserResource($user)]);
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Login successful',
+                    'data' => [
+                        'token' => $token,
+                        'user' => new UserResource($user)
+                    ]
+                ]);
             }
         }
 
-        return response()->json(['message' => 'Unauthorized'], 401);
+        return response()->json([
+            'success' => false,
+            'message' => 'Unauthorized'
+        ], 401);
     }
 
     /**
@@ -45,20 +69,47 @@ class AuthController extends Controller
     public function verifyMfa(Request $request): JsonResponse
     {
         $request->validate([
-            'email' => ['required', 'string', 'email'],
+            'temp_token' => ['required', 'string'],
             'otp' => ['required', 'string', 'digits:6'],
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        try {
+            $tokenData = decrypt($request->temp_token);
+            
+            if ($tokenData['purpose'] !== 'mfa_verification' || 
+                $tokenData['expires_at'] < now()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid or expired token.'
+                ], 401);
+            }
 
-        if (! $user || ! $user->hasMfaEnabled() || ! $user->verifyEmailOtpCode($request->otp)) {
-            return response()->json(['message' => 'Invalid MFA code or MFA not enabled for this user.'], 401);
+            $user = User::find($tokenData['user_id']);
+
+            if (! $user || ! $user->hasMfaEnabled() || ! $user->verifyEmailOtpCode($request->otp)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid MFA code or MFA not enabled for this user.'
+                ], 401);
+            }
+
+            // If MFA code is valid, issue the API token
+            $token = $user->createToken('api-token')->plainTextToken;
+
+            return response()->json([
+                'success' => true,
+                'message' => 'MFA verification successful',
+                'data' => [
+                    'token' => $token,
+                    'user' => new UserResource($user)
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid token format.'
+            ], 401);
         }
-
-        // If MFA code is valid, issue the API token
-        $token = $user->createToken('api-token')->plainTextToken;
-
-        return response()->json(['token' => $token, 'user' => new UserResource($user)]);
     }
 
     /**
@@ -68,6 +119,9 @@ class AuthController extends Controller
     {
         $request->user()->currentAccessToken()->delete();
 
-        return response()->json(['message' => 'Logged out successfully']);
+        return response()->json([
+            'success' => true,
+            'message' => 'Logged out successfully'
+        ]);
     }
 } 

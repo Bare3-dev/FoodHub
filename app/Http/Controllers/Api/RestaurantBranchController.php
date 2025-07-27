@@ -8,6 +8,7 @@ use App\Http\Resources\Api\RestaurantBranchResource;
 use App\Http\Requests\StoreRestaurantBranchRequest;
 use App\Http\Requests\UpdateRestaurantBranchRequest;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 
 class RestaurantBranchController extends Controller
@@ -15,16 +16,43 @@ class RestaurantBranchController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request): Response
+    public function index(Request $request): JsonResponse
     {
-        $this->authorize('viewAny', RestaurantBranch::class);
+        // Public endpoint - no authorization required
+
+        // Validate pagination and location parameters
+        $request->validate([
+            'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|min:1|max:100',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
+            'radius' => 'nullable|numeric|min:0.1|max:50',
+        ]);
 
         // Define the number of items per page, with a default of 15 and a maximum of 100.
         $perPage = $request->input('per_page', 15);
         $perPage = min($perPage, 100);
 
+        // Start building the query
+        $query = RestaurantBranch::with(['restaurant', 'menuItems']);
+
+        // Apply location filtering if parameters are provided
+        if ($request->has(['latitude', 'longitude', 'radius'])) {
+            $latitude = (float) $request->input('latitude');
+            $longitude = (float) $request->input('longitude');
+            $radius = (float) $request->input('radius');
+            
+            $query->withinRadius($latitude, $longitude, $radius);
+        }
+
         // Retrieve restaurant branches with pagination and transform them using RestaurantBranchResource collection.
-        return response(RestaurantBranchResource::collection(RestaurantBranch::paginate($perPage)));
+        $branches = $query->paginate($perPage);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Restaurant branches retrieved successfully',
+            'data' => RestaurantBranchResource::collection($branches)
+        ]);
     }
 
     /**
@@ -49,13 +77,20 @@ class RestaurantBranchController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(RestaurantBranch $restaurantBranch): Response
+    public function show(RestaurantBranch $restaurantBranch): JsonResponse
     {
-        $this->authorize('view', $restaurantBranch);
+        // Public endpoint - no authorization required
+
+        // Load the restaurant and menuItems relationships
+        $restaurantBranch->load(['restaurant', 'menuItems']);
 
         // Return the specified restaurant branch transformed by RestaurantBranchResource.
         // Laravel's route model binding automatically retrieves the restaurant branch.
-        return response(new RestaurantBranchResource($restaurantBranch));
+        return response()->json([
+            'success' => true,
+            'message' => 'Restaurant branch details retrieved successfully',
+            'data' => new RestaurantBranchResource($restaurantBranch)
+        ]);
     }
 
     /**

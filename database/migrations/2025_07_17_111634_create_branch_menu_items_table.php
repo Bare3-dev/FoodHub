@@ -13,7 +13,16 @@ return new class extends Migration
     {
         Schema::create('branch_menu_items', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('restaurant_branch_id')->constrained('restaurant_branches')->onDelete('cascade');
+            $table->foreignId('menu_item_id')->constrained('menu_items')->onDelete('cascade');
+            $table->decimal('price', 8, 2)->nullable();
+            $table->boolean('is_available')->default(true);
+            $table->boolean('is_featured')->default(false);
+            $table->integer('sort_order')->default(0);
+            $table->json('settings')->nullable();
             $table->timestamps();
+            
+            $table->unique(['restaurant_branch_id', 'menu_item_id']);
         });
     }
 

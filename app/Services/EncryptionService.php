@@ -308,4 +308,128 @@ class EncryptionService
             'report_generated_at' => now()->toISOString(),
         ];
     }
+
+    /**
+     * Basic encrypt method for simple string encryption
+     */
+    public function encrypt(string $data): string
+    {
+        return Crypt::encryptString($data);
+    }
+
+    /**
+     * Basic decrypt method for simple string decryption
+     */
+    public function decrypt(string $encryptedData): string
+    {
+        try {
+            return Crypt::decryptString($encryptedData);
+        } catch (Exception $e) {
+            throw new \App\Exceptions\SecurityException('Failed to decrypt data');
+        }
+    }
+
+    /**
+     * Valid PII types
+     */
+    private const VALID_PII_TYPES = [
+        'phone',
+        'address', 
+        'credit_card',
+        'email',
+        'ssn',
+        'passport',
+        'driver_license'
+    ];
+
+    /**
+     * Encrypt PII (Personally Identifiable Information) data
+     */
+    public function encryptPII(string $data, string $type): string
+    {
+        if (!in_array($type, self::VALID_PII_TYPES)) {
+            throw new \App\Exceptions\SecurityException('Invalid PII type');
+        }
+        
+        $contextualData = "pii:{$type}:" . $data;
+        return Crypt::encryptString($contextualData);
+    }
+
+    /**
+     * Decrypt PII data
+     */
+    public function decryptPII(string $encryptedData, string $type): string
+    {
+        try {
+            $decrypted = Crypt::decryptString($encryptedData);
+            
+            if (!str_starts_with($decrypted, "pii:{$type}:")) {
+                throw new \App\Exceptions\SecurityException('Invalid PII type');
+            }
+            
+            return substr($decrypted, strlen("pii:{$type}:"));
+        } catch (Exception $e) {
+            throw new \App\Exceptions\SecurityException('Failed to decrypt PII data');
+        }
+    }
+
+    /**
+     * Generate secure hash with salt
+     */
+    public function hash(string $data): string
+    {
+        return Hash::make($data);
+    }
+
+    /**
+     * Verify hash against data
+     */
+    public function verifyHash(string $data, string $hash): bool
+    {
+        return Hash::check($data, $hash);
+    }
+
+    /**
+     * Generate secure token
+     */
+    public function generateSecureToken(int $length = 64): string
+    {
+        return bin2hex(random_bytes($length / 2));
+    }
+
+    /**
+     * Safe string comparison to prevent timing attacks
+     */
+    public function safeStringCompare(string $known, string $user): bool
+    {
+        return hash_equals($known, $user);
+    }
+
+    /**
+     * Generate HMAC signature
+     */
+    public function generateHmac(string $data, string $key): string
+    {
+        return hash_hmac('sha256', $data, $key);
+    }
+
+    /**
+     * Verify HMAC signature
+     */
+    public function verifyHmac(string $data, string $signature, string $key): bool
+    {
+        return hash_equals($this->generateHmac($data, $key), $signature);
+    }
+
+    /**
+     * Mask sensitive data (string version for tests)
+     */
+    public function maskSensitiveDataString(string $data): string
+    {
+        $length = strlen($data);
+        if ($length <= 4) {
+            return str_repeat('*', $length);
+        }
+        return substr($data, 0, 2) . str_repeat('*', $length - 4) . substr($data, -2);
+    }
 } 

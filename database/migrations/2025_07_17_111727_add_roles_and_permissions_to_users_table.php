@@ -23,7 +23,8 @@ return new class extends Migration
                 'CASHIER',
                 'KITCHEN_STAFF',
                 'DELIVERY_MANAGER',
-                'CUSTOMER_SERVICE'
+                'CUSTOMER_SERVICE',
+                'DRIVER'
             ])->after('password');
             $table->jsonb('permissions')->default('[]')->after('role'); // Specific permissions override
             $table->enum('status', ['active', 'inactive', 'suspended'])->default('active')->after('permissions');

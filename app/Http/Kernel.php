@@ -40,7 +40,8 @@ class Kernel extends HttpKernel
         'api' => [
             // \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             // 'throttle:api',
-            // \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\SecurityHeadersMiddleware::class,
         ],
     ];
 
@@ -55,6 +56,7 @@ class Kernel extends HttpKernel
         'role.permission' => \App\Http\Middleware\RoleAndPermissionMiddleware::class,
         'advanced.rate.limit' => \App\Http\Middleware\AdvancedRateLimitMiddleware::class,
         'api.cors' => \App\Http\Middleware\ApiCorsMiddleware::class,
+        'public.cache' => \App\Http\Middleware\PublicCacheMiddleware::class,
         'https.security' => \App\Http\Middleware\HttpsEnforcementMiddleware::class,
         'input.sanitization' => \App\Http\Middleware\InputSanitizationMiddleware::class,
         // 'auth' => \App\Http\Middleware\Authenticate::class,

@@ -16,16 +16,21 @@ class BranchMenuItemController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request, RestaurantBranch $restaurantBranch = null): Response
+    public function index(Request $request, RestaurantBranch $restaurantBranch = null): \Illuminate\Http\JsonResponse
     {
-        $this->authorize('viewAny', BranchMenuItem::class);
+        // Public endpoint - no authorization required
 
         // Initialize a query builder for BranchMenuItem model.
-        $query = BranchMenuItem::query();
+        $query = BranchMenuItem::with(['menuItem', 'branch']);
 
         // If a restaurant branch is provided (for nested resources), filter by its ID.
         if ($restaurantBranch) {
             $query->where('restaurant_branch_id', $restaurantBranch->id);
+        }
+
+        // Filter by availability if requested
+        if ($request->boolean('available_only')) {
+            $query->where('is_available', true);
         }
 
         // Define the number of items per page, with a default of 15 and a maximum of 100.
@@ -35,7 +40,11 @@ class BranchMenuItemController extends Controller
 
         // Retrieve branch menu items based on applied filters with pagination and transform them using BranchMenuItemResource collection.
         // The `paginate` method automatically handles the SQL LIMIT and OFFSET and provides pagination metadata.
-        return response(BranchMenuItemResource::collection($query->paginate($perPage)));
+        return response()->json([
+            'success' => true,
+            'message' => 'Branch menu items retrieved successfully',
+            'data' => BranchMenuItemResource::collection($query->paginate($perPage))
+        ]);
     }
 
     /**
@@ -67,9 +76,9 @@ class BranchMenuItemController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(RestaurantBranch $restaurantBranch = null, BranchMenuItem $branchMenuItem): Response
+    public function show(RestaurantBranch $restaurantBranch = null, BranchMenuItem $branchMenuItem): \Illuminate\Http\JsonResponse
     {
-        $this->authorize('view', $branchMenuItem);
+        // Public endpoint - no authorization required
 
         // If a restaurant branch is provided (nested resource), ensure the branch menu item belongs to it.
         if ($restaurantBranch && $branchMenuItem->restaurant_branch_id !== $restaurantBranch->id) {
@@ -77,7 +86,12 @@ class BranchMenuItemController extends Controller
         }
         // Return the specified branch menu item transformed by BranchMenuItemResource.
         // Laravel's route model binding automatically retrieves the branch menu item.
-        return response(new BranchMenuItemResource($branchMenuItem));
+        $branchMenuItem->load(['menuItem', 'branch']);
+        return response()->json([
+            'success' => true,
+            'message' => 'Branch menu item details retrieved successfully',
+            'data' => new BranchMenuItemResource($branchMenuItem)
+        ]);
     }
 
     /**

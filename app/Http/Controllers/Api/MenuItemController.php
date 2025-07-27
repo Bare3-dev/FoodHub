@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MenuItem;
 use App\Models\Restaurant;
 use App\Http\Resources\Api\MenuItemResource;
+use App\Http\Requests\IndexMenuItemRequest;
 use App\Http\Requests\StoreMenuItemRequest;
 use App\Http\Requests\UpdateMenuItemRequest;
 use Illuminate\Http\Request;
@@ -16,12 +17,12 @@ class MenuItemController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request, Restaurant $restaurant = null): Response
+    public function index(IndexMenuItemRequest $request, Restaurant $restaurant = null): \Illuminate\Http\JsonResponse
     {
-        $this->authorize('viewAny', MenuItem::class);
+        // Public endpoint - no authorization required
 
         // Initialize a query builder for MenuItem model.
-        $query = MenuItem::query();
+        $query = MenuItem::with(['menuCategory', 'restaurant']);
 
         // If a restaurant is provided (for nested resources), filter by its ID.
         if ($restaurant) {
@@ -78,7 +79,11 @@ class MenuItemController extends Controller
 
         // Retrieve menu items based on applied filters with pagination and transform them using MenuItemResource collection.
         // The `paginate` method automatically handles the SQL LIMIT and OFFSET and provides pagination metadata.
-        return response(MenuItemResource::collection($query->paginate($perPage)));
+        return response()->json([
+            'success' => true,
+            'message' => 'Menu items retrieved successfully',
+            'data' => MenuItemResource::collection($query->paginate($perPage))
+        ]);
     }
 
     /**
@@ -110,17 +115,25 @@ class MenuItemController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Restaurant $restaurant = null, MenuItem $menuItem): Response
+    public function show(MenuItem $menuItem, Restaurant $restaurant = null): JsonResponse
     {
-        $this->authorize('view', $menuItem);
+        // Public endpoint - no authorization required
 
         // If a restaurant is provided (nested resource), ensure the menu item belongs to it.
         if ($restaurant && $menuItem->restaurant_id !== $restaurant->id) {
             abort(404); // Not Found if the menu item does not belong to the specified restaurant.
         }
+        
+        // Load relationships
+        $menuItem->load(['menuCategory', 'restaurant']);
+        
         // Return the specified menu item transformed by MenuItemResource.
         // Laravel's route model binding automatically retrieves the menu item.
-        return response(new MenuItemResource($menuItem));
+        return response()->json([
+            'success' => true,
+            'message' => 'Menu item details retrieved successfully',
+            'data' => new MenuItemResource($menuItem)
+        ]);
     }
 
     /**

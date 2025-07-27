@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\MenuCategory;
+use App\Models\Restaurant;
 use App\Http\Resources\Api\MenuCategoryResource;
 use App\Http\Requests\StoreMenuCategoryRequest;
 use App\Http\Requests\UpdateMenuCategoryRequest;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 
 class MenuCategoryController extends Controller
@@ -15,22 +17,36 @@ class MenuCategoryController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request): Response
+    public function index(Request $request, Restaurant $restaurant = null): JsonResponse
     {
-        $this->authorize('viewAny', MenuCategory::class);
+        // Public endpoint - no authorization required
 
         // Define the number of items per page, with a default of 15 and a maximum of 100.
         $perPage = $request->input('per_page', 15);
         $perPage = min($perPage, 100);
 
+        // Initialize query
+        $query = MenuCategory::with('restaurant');
+
+        // If a restaurant is provided (nested resource), filter by its ID
+        if ($restaurant) {
+            $query->where('restaurant_id', $restaurant->id);
+        }
+
         // Retrieve menu categories with pagination and transform them using MenuCategoryResource collection.
-        return response(MenuCategoryResource::collection(MenuCategory::paginate($perPage)));
+        $categories = $query->paginate($perPage);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Menu categories retrieved successfully',
+            'data' => MenuCategoryResource::collection($categories)
+        ]);
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreMenuCategoryRequest $request): Response
+    public function store(StoreMenuCategoryRequest $request): JsonResponse
     {
         $this->authorize('create', MenuCategory::class);
 
@@ -43,25 +59,36 @@ class MenuCategoryController extends Controller
 
         // Return the newly created menu category transformed by MenuCategoryResource
         // with a 201 Created status code.
-        return response(new MenuCategoryResource($menuCategory), 201);
+        return response()->json([
+            'success' => true,
+            'message' => 'Menu category created successfully',
+            'data' => new MenuCategoryResource($menuCategory)
+        ], 201);
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(MenuCategory $menuCategory): Response
+    public function show(MenuCategory $menuCategory): JsonResponse
     {
-        $this->authorize('view', $menuCategory);
+        // Public endpoint - no authorization required
 
+        // Load the restaurant and menu items relationships
+        $menuCategory->load(['restaurant', 'menuItems']);
+        
         // Return the specified menu category transformed by MenuCategoryResource.
         // Laravel's route model binding automatically retrieves the menu category.
-        return response(new MenuCategoryResource($menuCategory));
+        return response()->json([
+            'success' => true,
+            'message' => 'Menu category details retrieved successfully',
+            'data' => new MenuCategoryResource($menuCategory)
+        ]);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateMenuCategoryRequest $request, MenuCategory $menuCategory): Response
+    public function update(UpdateMenuCategoryRequest $request, MenuCategory $menuCategory): JsonResponse
     {
         $this->authorize('update', $menuCategory);
 
@@ -73,20 +100,27 @@ class MenuCategoryController extends Controller
         $menuCategory->update($validated);
 
         // Return the updated menu category transformed by MenuCategoryResource.
-        return response(new MenuCategoryResource($menuCategory));
+        return response()->json([
+            'success' => true,
+            'message' => 'Menu category updated successfully',
+            'data' => new MenuCategoryResource($menuCategory)
+        ]);
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(MenuCategory $menuCategory): Response
+    public function destroy(MenuCategory $menuCategory): JsonResponse
     {
         $this->authorize('delete', $menuCategory);
 
         // Delete the specified menu category record.
         $menuCategory->delete();
 
-        // Return a 204 No Content response, indicating successful deletion.
-        return response(null, 204);
+        // Return a success response indicating successful deletion.
+        return response()->json([
+            'success' => true,
+            'message' => 'Menu category deleted successfully'
+        ], 200);
     }
 }

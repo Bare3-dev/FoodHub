@@ -59,7 +59,9 @@ class ApiCorsMiddleware
         $allowedMethods = $this->getAllowedMethods($corsType);
 
         // Check if origin is allowed
-        if ($this->isOriginAllowed($origin, $allowedOrigins)) {
+        if ($allowedOrigins === ['*']) {
+            $response->headers->set('Access-Control-Allow-Origin', '*');
+        } elseif ($this->isOriginAllowed($origin, $allowedOrigins)) {
             $response->headers->set('Access-Control-Allow-Origin', $origin);
         }
 
@@ -96,47 +98,45 @@ class ApiCorsMiddleware
 
         switch ($corsType) {
             case 'public':
-                // More permissive for public endpoints
-                return array_merge($baseOrigins, [
-                    '*', // Allow all origins for public data
-                ]);
-
-            case 'admin':
-                // Strict origins for admin endpoints
-                return array_filter([
-                    env('ADMIN_URL'),
-                    env('FRONTEND_URL'), // In case admin is part of main app
-                    ...$this->getDevelopmentOrigins(),
-                ]);
-
+                // More permissive for public endpoints - allow all origins
+                return ['*'];
+            
             case 'private':
+                // Strict for authenticated endpoints
+                return array_merge($baseOrigins, [
+                    'https://app.foodhub.com',
+                    'https://admin.foodhub.com',
+                ]);
+            
+            case 'admin':
+                // Admin only
+                return array_merge($baseOrigins, [
+                    'https://admin.foodhub.com',
+                ]);
+            
             default:
-                // Standard origins for authenticated endpoints
                 return $baseOrigins;
         }
     }
 
     /**
-     * Get base allowed origins from environment
+     * Get base allowed origins (development and testing)
      */
     private function getBaseAllowedOrigins(): array
     {
-        if (app()->environment('production')) {
-            return array_filter([
-                env('FRONTEND_URL'),
-                env('ADMIN_URL'),
-                ...array_filter(explode(',', env('CORS_ALLOWED_ORIGINS', ''))),
-            ]);
+        $origins = [
+            'http://localhost:3000',
+            'http://localhost:8080',
+            'http://127.0.0.1:3000',
+            'http://127.0.0.1:8080',
+        ];
+
+        // Add development origins
+        if (app()->environment('local', 'development')) {
+            $origins = array_merge($origins, $this->getDevelopmentOrigins());
         }
 
-        return array_merge(
-            $this->getDevelopmentOrigins(),
-            array_filter([
-                env('FRONTEND_URL', 'http://localhost:3000'),
-                env('ADMIN_URL'),
-                ...array_filter(explode(',', env('CORS_ALLOWED_ORIGINS', ''))),
-            ])
-        );
+        return $origins;
     }
 
     /**
@@ -145,18 +145,10 @@ class ApiCorsMiddleware
     private function getDevelopmentOrigins(): array
     {
         return [
-            'http://localhost:3000',
-            'http://localhost:5173',
-            'http://localhost:4200',
-            'http://localhost:8080',
-            'http://localhost:8100',
             'http://localhost:3001',
-            'http://localhost:8000',
-            'http://127.0.0.1:3000',
-            'http://127.0.0.1:5173',
-            'http://127.0.0.1:4200',
-            'http://127.0.0.1:8080',
-            'http://127.0.0.1:8100',
+            'http://localhost:3002',
+            'http://localhost:5173', // Vite dev server
+            'http://localhost:4173', // Vite preview
         ];
     }
 
@@ -166,23 +158,34 @@ class ApiCorsMiddleware
     private function getAllowedHeaders(string $corsType): array
     {
         $baseHeaders = [
-            'Accept',
             'Content-Type',
-            'Origin',
-            'Cache-Control',
-            'Pragma',
+            'Accept',
+            'Authorization',
+            'X-Requested-With',
         ];
 
-        if ($corsType !== 'public') {
-            $baseHeaders = array_merge($baseHeaders, [
-                'Authorization',
-                'X-Requested-With',
-                'X-CSRF-TOKEN',
-                'X-XSRF-TOKEN',
-            ]);
+        switch ($corsType) {
+            case 'public':
+                return $baseHeaders;
+            
+            case 'private':
+                return array_merge($baseHeaders, [
+                    'X-CSRF-TOKEN',
+                    'X-API-Key',
+                    'X-Client-Version',
+                ]);
+            
+            case 'admin':
+                return array_merge($baseHeaders, [
+                    'X-CSRF-TOKEN',
+                    'X-API-Key',
+                    'X-Client-Version',
+                    'X-Admin-Token',
+                ]);
+            
+            default:
+                return $baseHeaders;
         }
-
-        return $baseHeaders;
     }
 
     /**
@@ -193,11 +196,15 @@ class ApiCorsMiddleware
         switch ($corsType) {
             case 'public':
                 return ['GET', 'HEAD', 'OPTIONS'];
-
-            case 'admin':
+            
             case 'private':
-            default:
                 return ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
+            
+            case 'admin':
+                return ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
+            
+            default:
+                return ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS'];
         }
     }
 
@@ -210,32 +217,6 @@ class ApiCorsMiddleware
             return false;
         }
 
-        if (in_array('*', $allowedOrigins)) {
-            return true;
-        }
-
-        if (in_array($origin, $allowedOrigins)) {
-            return true;
-        }
-
-        // Check against patterns (for development)
-        if (!app()->environment('production')) {
-            $patterns = [
-                '/^http:\/\/localhost:\d+$/',
-                '/^http:\/\/127\.0\.0\.1:\d+$/',
-                '/^https?:\/\/.*\.ngrok\.io$/',
-                '/^https?:\/\/.*\.ngrok-free\.app$/',
-                '/^https?:\/\/.*\.vercel\.app$/',
-                '/^https?:\/\/.*\.netlify\.app$/',
-            ];
-
-            foreach ($patterns as $pattern) {
-                if (preg_match($pattern, $origin)) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
+        return in_array($origin, $allowedOrigins);
     }
 }

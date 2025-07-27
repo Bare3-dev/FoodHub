@@ -17,9 +17,12 @@ class RestaurantBranchFactory extends Factory
      */
     public function definition(): array
     {
+        $name = $this->faker->streetName() . ' Branch';
+        
         return [
             'restaurant_id' => Restaurant::factory(),
-            'name' => $this->faker->streetName() . ' Branch',
+            'name' => $name,
+            'slug' => \Illuminate\Support\Str::slug($name),
             'address' => $this->faker->streetAddress(),
             'city' => $this->faker->city(),
             'state' => $this->faker->state(),
@@ -29,7 +32,7 @@ class RestaurantBranchFactory extends Factory
             'longitude' => $this->faker->longitude(-125, -66), // US bounds
             'phone' => $this->faker->phoneNumber(),
             'email' => $this->faker->email(),
-            'opening_hours' => json_encode([
+            'operating_hours' => json_encode([
                 'monday' => ['open' => '10:00', 'close' => '22:00'],
                 'tuesday' => ['open' => '10:00', 'close' => '22:00'],
                 'wednesday' => ['open' => '10:00', 'close' => '22:00'],
@@ -50,9 +53,14 @@ class RestaurantBranchFactory extends Factory
                     'fee' => 4.99
                 ]
             ]),
-            'is_active' => $this->faker->boolean(95),
-            'capacity' => $this->faker->numberBetween(20, 150),
-            'features' => json_encode($this->faker->randomElements([
+            'status' => $this->faker->randomElement(['active', 'inactive', 'temporarily_closed']),
+            'accepts_online_orders' => $this->faker->boolean(95),
+            'accepts_delivery' => $this->faker->boolean(95),
+            'accepts_pickup' => $this->faker->boolean(95),
+            'delivery_fee' => $this->faker->randomFloat(2, 0, 10),
+            'minimum_order_amount' => $this->faker->randomFloat(2, 0, 25),
+            'estimated_delivery_time' => $this->faker->numberBetween(15, 60),
+            'settings' => json_encode($this->faker->randomElements([
                 'parking', 'wifi', 'outdoor_seating', 'takeout', 'delivery', 
                 'wheelchair_accessible', 'kids_menu', 'live_music'
             ], $this->faker->numberBetween(2, 5))),

@@ -81,6 +81,14 @@ final class MenuItem extends Model
     }
 
     /**
+     * Alias for menu category relationship for resource/controller eager loading.
+     */
+    public function menuCategory(): BelongsTo
+    {
+        return $this->belongsTo(MenuCategory::class, 'menu_category_id');
+    }
+
+    /**
      * Get the branch menu items for this menu item.
      */
     public function branchMenuItems(): HasMany

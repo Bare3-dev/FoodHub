@@ -13,19 +13,19 @@ Route::post('/register', [RegisteredUserController::class, 'store'])
     ->name('register');
 
 Route::post('/login', [AuthenticatedSessionController::class, 'store'])
-    ->middleware(['guest', 'advanced.rate.limit:login'])
+    ->middleware(['guest'])
     ->name('login');
 
 Route::post('/mfa/verify', [AuthenticatedSessionController::class, 'verifyMfa'])
-    ->middleware(['guest', 'advanced.rate.limit:mfa_verify']) // MFA verification happens before full authentication
+    ->middleware(['guest']) // MFA verification happens before full authentication
     ->name('mfa.verify');
 
 Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])
-    ->middleware(['guest', 'advanced.rate.limit:password_reset'])
+    ->middleware(['guest'])
     ->name('password.email');
 
 Route::post('/reset-password', [NewPasswordController::class, 'store'])
-    ->middleware(['guest', 'advanced.rate.limit:password_reset'])
+    ->middleware(['guest'])
     ->name('password.store');
 
 Route::get('/verify-email/{id}/{hash}', VerifyEmailController::class)

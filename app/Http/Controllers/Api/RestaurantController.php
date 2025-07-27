@@ -9,6 +9,7 @@ use App\Http\Requests\StoreRestaurantRequest;
 use App\Http\Requests\UpdateRestaurantRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 
 class RestaurantController extends Controller
@@ -16,18 +17,34 @@ class RestaurantController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request): Response
+    public function index(Request $request): JsonResponse
     {
-        $this->authorize('viewAny', Restaurant::class);
-
-        // Define the number of items per page, with a default of 15 and a maximum of 100.
-        // This allows clients to control pagination size while preventing abuse.
+        // Public endpoint - no authorization required
+        
+        // Validate pagination parameters
+        $request->validate([
+            'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|min:1|max:100',
+        ]);
+        
         $perPage = $request->input('per_page', 15);
         $perPage = min($perPage, 100);
-
-        // Retrieve restaurants with pagination and transform them using RestaurantResource collection.
-        // The `paginate` method automatically handles the SQL LIMIT and OFFSET and provides pagination metadata.
-        return response(RestaurantResource::collection(Restaurant::paginate($perPage)));
+        
+        $restaurants = Restaurant::paginate($perPage);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Restaurants retrieved successfully',
+            'data' => RestaurantResource::collection($restaurants),
+            'meta' => [
+                'current_page' => $restaurants->currentPage(),
+                'last_page' => $restaurants->lastPage(),
+                'per_page' => $restaurants->perPage(),
+                'total' => $restaurants->total(),
+                'from' => $restaurants->firstItem(),
+                'to' => $restaurants->lastItem(),
+            ]
+        ]);
     }
 
     /**
@@ -52,13 +69,19 @@ class RestaurantController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Restaurant $restaurant): Response
+    public function show(Restaurant $restaurant): JsonResponse
     {
-        $this->authorize('view', $restaurant);
-
+        // Public endpoint - no authorization required
+        // Load the branches relationship
+        $restaurant->load('branches');
+        
         // Return the specified restaurant transformed by RestaurantResource.
         // Laravel's route model binding automatically retrieves the restaurant.
-        return response(new RestaurantResource($restaurant));
+        return response()->json([
+            'success' => true,
+            'message' => 'Restaurant details retrieved successfully',
+            'data' => new RestaurantResource($restaurant)
+        ]);
     }
 
     /**

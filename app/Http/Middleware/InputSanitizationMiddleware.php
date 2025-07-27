@@ -5,35 +5,16 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use App\Services\SecurityLoggingService;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Input Sanitization and Attack Prevention Middleware
  * 
- * Comprehensive security middleware that prevents common web application attacks
- * including SQL injection, XSS, CSRF, file upload attacks, and other malicious inputs.
- * 
- * Features:
- * - SQL injection detection and prevention
- * - XSS attack detection and sanitization
- * - Path traversal prevention
- * - Malicious file upload detection
- * - Command injection prevention
- * - NoSQL injection detection
- * - Input size limiting
- * - Suspicious pattern detection
- * - Automatic threat response
+ * Basic security middleware that prevents common web application attacks
+ * including SQL injection, XSS, and other malicious inputs.
  */
 class InputSanitizationMiddleware
 {
-    private SecurityLoggingService $securityLogger;
-
-    public function __construct(SecurityLoggingService $securityLogger)
-    {
-        $this->securityLogger = $securityLogger;
-    }
-
     /**
      * Handle an incoming request.
      *
@@ -41,17 +22,12 @@ class InputSanitizationMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Skip sanitization for safe routes (health checks, etc.)
+        // Skip sanitization for safe routes
         if ($this->isSafeRoute($request)) {
             return $next($request);
         }
 
-        // Check for blocked IPs first
-        if ($this->isBlockedIp($request)) {
-            return $this->blockRequest('IP address is temporarily blocked');
-        }
-
-        // Perform comprehensive input validation
+        // Perform basic input validation
         $threats = $this->detectThreats($request);
         
         if (!empty($threats)) {
@@ -65,7 +41,7 @@ class InputSanitizationMiddleware
     }
 
     /**
-     * Detect various security threats in the request
+     * Detect basic security threats in the request
      */
     private function detectThreats(Request $request): array
     {
@@ -74,7 +50,6 @@ class InputSanitizationMiddleware
         // Check all input sources
         $allInputs = array_merge(
             $request->all(),
-            $request->headers->all(),
             [$request->getPathInfo()],
             [$request->getQueryString()]
         );
@@ -82,10 +57,14 @@ class InputSanitizationMiddleware
         foreach ($allInputs as $key => $value) {
             if (is_array($value)) {
                 foreach ($value as $subKey => $subValue) {
-                    $threats = array_merge($threats, $this->analyzeInput($subKey, $subValue, $request));
+                    if ($this->isSuspicious($subValue)) {
+                        $threats[] = "Suspicious input detected in {$key}.{$subKey}";
+                    }
                 }
             } else {
-                $threats = array_merge($threats, $this->analyzeInput($key, $value, $request));
+                if ($this->isSuspicious($value)) {
+                    $threats[] = "Suspicious input detected in {$key}";
+                }
             }
         }
 
@@ -93,232 +72,40 @@ class InputSanitizationMiddleware
     }
 
     /**
-     * Analyze individual input for threats
+     * Check if input contains suspicious patterns
      */
-    private function analyzeInput($key, $value, Request $request): array
+    private function isSuspicious($input): bool
     {
-        if (!is_string($value) || empty($value)) {
-            return [];
+        if (!is_string($input) || empty($input)) {
+            return false;
         }
 
-        $threats = [];
-        $normalizedValue = strtolower($value);
-
-        // SQL Injection Detection
-        if ($this->detectSqlInjection($normalizedValue)) {
-            $threats[] = [
-                'type' => 'sql_injection_attempt',
-                'field' => $key,
-                'value' => $this->truncateForLogging($value),
-                'severity' => 'critical'
-            ];
-        }
-
-        // XSS Detection
-        if ($this->detectXss($value)) {
-            $threats[] = [
-                'type' => 'xss_attempt',
-                'field' => $key,
-                'value' => $this->truncateForLogging($value),
-                'severity' => 'critical'
-            ];
-        }
-
-        // Path Traversal Detection
-        if ($this->detectPathTraversal($value)) {
-            $threats[] = [
-                'type' => 'path_traversal_attempt',
-                'field' => $key,
-                'value' => $this->truncateForLogging($value),
-                'severity' => 'high'
-            ];
-        }
-
-        // Command Injection Detection
-        if ($this->detectCommandInjection($normalizedValue)) {
-            $threats[] = [
-                'type' => 'command_injection_attempt',
-                'field' => $key,
-                'value' => $this->truncateForLogging($value),
-                'severity' => 'critical'
-            ];
-        }
-
-        // NoSQL Injection Detection
-        if ($this->detectNoSqlInjection($normalizedValue)) {
-            $threats[] = [
-                'type' => 'nosql_injection_attempt',
-                'field' => $key,
-                'value' => $this->truncateForLogging($value),
-                'severity' => 'high'
-            ];
-        }
-
-        // Suspicious Pattern Detection
-        if ($this->detectSuspiciousPatterns($value)) {
-            $threats[] = [
-                'type' => 'suspicious_pattern',
-                'field' => $key,
-                'value' => $this->truncateForLogging($value),
-                'severity' => 'medium'
-            ];
-        }
-
-        return $threats;
-    }
-
-    /**
-     * Detect SQL injection attempts
-     */
-    private function detectSqlInjection(string $input): bool
-    {
-        $sqlPatterns = [
-            '/(\b(select|insert|update|delete|drop|create|alter|exec|execute|union|script)\b)/i',
-            '/(\b(or|and)\s+\d+\s*=\s*\d+)/i',
-            '/(\'|\")(\s*)(or|and)(\s*)(\'|\")/i',
-            '/(\bor\b\s+\b1\s*=\s*1\b)/i',
-            '/(\bunion\b.*\bselect\b)/i',
-            '/(\/\*.*\*\/)/i',
-            '/(\b(concat|char|ascii|substring|length|database|version|user|table_name)\s*\()/i',
-            '/(\';\s*(drop|delete|insert|update))/i',
-        ];
-
-        foreach ($sqlPatterns as $pattern) {
-            if (preg_match($pattern, $input)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Detect XSS attempts
-     */
-    private function detectXss(string $input): bool
-    {
-        $xssPatterns = [
-            '/<script[^>]*>.*?<\/script>/is',
-            '/<iframe[^>]*>.*?<\/iframe>/is',
+        $suspiciousPatterns = [
+            // SQL Injection patterns
+            '/\b(union|select|insert|update|delete|drop|create|alter|exec|execute)\b/i',
+            '/[\'";]+\s*(union|select|insert|update|delete|drop|create|alter|exec|execute)/i',
+            
+            // XSS patterns
+            '/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/i',
             '/javascript:/i',
             '/on\w+\s*=/i',
-            '/<[^>]*?(?:onclick|onmouseover|onerror|onload|onmouseout)[^>]*>/i',
-            '/eval\s*\(/i',
-            '/expression\s*\(/i',
-            '/vbscript:/i',
-            '/data:text\/html/i',
-            '/<object[^>]*>.*?<\/object>/is',
-            '/<embed[^>]*>.*?<\/embed>/is',
-            '/<applet[^>]*>.*?<\/applet>/is',
-        ];
-
-        foreach ($xssPatterns as $pattern) {
-            if (preg_match($pattern, $input)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Detect path traversal attempts
-     */
-    private function detectPathTraversal(string $input): bool
-    {
-        $pathPatterns = [
+            
+            // Path traversal
             '/\.\.\//',
-            '/\.\.\\\\/',
-            '/%2e%2e%2f/',
-            '/%2e%2e\\\\/',
-            '/\.\.\%5c/',
-            '/\.\.\%2f/',
-            '/\/etc\/passwd/',
-            '/\/windows\/system32/',
-            '/\/proc\/self\/environ/',
-        ];
-
-        foreach ($pathPatterns as $pattern) {
-            if (preg_match($pattern, $input)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Detect command injection attempts
-     */
-    private function detectCommandInjection(string $input): bool
-    {
-        $cmdPatterns = [
-            '/(\||\&\&|\|\||\;)\s*(cat|ls|pwd|whoami|id|uname|ps|netstat|ifconfig|wget|curl|nc|telnet|ssh)/i',
-            '/(`|\\$\(|\$\{).*(`|\)|\})/i',
-            '/(rm\s+-rf|rmdir|del\s+\/[a-z])/i',
-            '/(chmod|chown|su|sudo|passwd)\s+/i',
-            '/(\bexec\b|\bsystem\b|\bpassthru\b|\bshell_exec\b)\s*\(/i',
-        ];
-
-        foreach ($cmdPatterns as $pattern) {
-            if (preg_match($pattern, $input)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Detect NoSQL injection attempts
-     */
-    private function detectNoSqlInjection(string $input): bool
-    {
-        $noSqlPatterns = [
+            '/\.\.\\\/',
+            
+            // Command injection
+            '/[;&|`$()]/',
+            
+            // NoSQL injection
             '/\$where/i',
-            '/\$ne\s*:/i',
-            '/\$gt\s*:/i',
-            '/\$lt\s*:/i',
-            '/\$regex\s*:/i',
-            '/\$or\s*:/i',
-            '/\$and\s*:/i',
-            '/\$not\s*:/i',
-            '/\$exists\s*:/i',
-            '/\$in\s*:/i',
-            '/\$nin\s*:/i',
+            '/\$ne/i',
+            '/\$gt/i',
+            '/\$lt/i',
         ];
 
-        foreach ($noSqlPatterns as $pattern) {
+        foreach ($suspiciousPatterns as $pattern) {
             if (preg_match($pattern, $input)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Detect suspicious patterns
-     */
-    private function detectSuspiciousPatterns(string $input): bool
-    {
-        // Check for suspicious file extensions
-        if (preg_match('/\.(php|asp|jsp|exe|bat|cmd|sh|pl|py|rb)$/i', $input)) {
-            return true;
-        }
-
-        // Check for base64 encoded suspicious content
-        if (preg_match('/^[A-Za-z0-9+\/]+=*$/', $input) && strlen($input) > 50) {
-            $decoded = base64_decode($input, true);
-            if ($decoded && (strpos($decoded, '<script') !== false || strpos($decoded, 'eval(') !== false)) {
-                return true;
-            }
-        }
-
-        // Check for URL encoded suspicious content
-        if (strpos($input, '%') !== false) {
-            $decoded = urldecode($input);
-            if ($this->detectXss($decoded) || $this->detectSqlInjection(strtolower($decoded))) {
                 return true;
             }
         }
@@ -331,37 +118,19 @@ class InputSanitizationMiddleware
      */
     private function handleThreats(Request $request, array $threats): Response
     {
-        $criticalThreats = array_filter($threats, fn($threat) => $threat['severity'] === 'critical');
-        $highThreats = array_filter($threats, fn($threat) => $threat['severity'] === 'high');
+        $message = 'Security threat detected: ' . implode(', ', $threats);
+        
+        Log::warning('Security threat detected', [
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'url' => $request->fullUrl(),
+            'threats' => $threats,
+        ]);
 
-        // Log all threats
-        foreach ($threats as $threat) {
-            $this->securityLogger->logAttackAttempt(
-                $threat['type'],
-                [
-                    'field' => $threat['field'],
-                    'raw_input' => $threat['value'],
-                    'detection_method' => 'input_sanitization_middleware',
-                ],
-                $request
-            );
-        }
-
-        // Block critical threats immediately
-        if (!empty($criticalThreats)) {
-            return $this->blockRequest('Critical security threat detected', 403);
-        }
-
-        // Warn about high threats but allow request
-        if (!empty($highThreats)) {
-            Log::warning('High severity security threat detected but request allowed', [
-                'threats' => $highThreats,
-                'ip' => $request->ip(),
-                'url' => $request->fullUrl(),
-            ]);
-        }
-
-        return $this->blockRequest('Security threat detected', 400);
+        return response()->json([
+            'error' => 'Invalid input detected',
+            'message' => 'Request blocked for security reasons'
+        ], 400);
     }
 
     /**
@@ -369,57 +138,46 @@ class InputSanitizationMiddleware
      */
     private function sanitizeRequest(Request $request): void
     {
-        // Sanitize query parameters
-        $sanitizedQuery = $this->sanitizeArray($request->query->all());
-        $request->query->replace($sanitizedQuery);
-
-        // Sanitize POST data
-        $sanitizedPost = $this->sanitizeArray($request->request->all());
-        $request->request->replace($sanitizedPost);
-
-        // Sanitize JSON data
-        if ($request->isJson()) {
-            $jsonData = $request->json()->all();
-            $sanitizedJson = $this->sanitizeArray($jsonData);
-            $request->json()->replace($sanitizedJson);
-        }
+        $inputs = $request->all();
+        $sanitized = $this->sanitizeArray($inputs);
+        
+        // Replace request inputs with sanitized versions
+        $request->replace($sanitized);
     }
 
     /**
-     * Sanitize array of inputs
+     * Sanitize array recursively
      */
     private function sanitizeArray(array $data): array
     {
         $sanitized = [];
-
+        
         foreach ($data as $key => $value) {
             if (is_array($value)) {
                 $sanitized[$key] = $this->sanitizeArray($value);
-            } elseif (is_string($value)) {
-                $sanitized[$key] = $this->sanitizeString($value);
             } else {
-                $sanitized[$key] = $value;
+                $sanitized[$key] = $this->sanitizeString($value);
             }
         }
-
+        
         return $sanitized;
     }
 
     /**
-     * Sanitize individual string
+     * Sanitize string input
      */
-    private function sanitizeString(string $input): string
+    private function sanitizeString($input): string
     {
-        // Remove null bytes
-        $input = str_replace("\0", '', $input);
+        if (!is_string($input)) {
+            return $input;
+        }
+
+        // Basic sanitization
+        $sanitized = htmlspecialchars($input, ENT_QUOTES, 'UTF-8');
+        $sanitized = strip_tags($sanitized);
+        $sanitized = trim($sanitized);
         
-        // Basic HTML entity encoding for potential XSS
-        $input = htmlspecialchars($input, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        
-        // Remove or encode suspicious characters
-        $input = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $input);
-        
-        return $input;
+        return $sanitized;
     }
 
     /**
@@ -428,44 +186,12 @@ class InputSanitizationMiddleware
     private function isSafeRoute(Request $request): bool
     {
         $safeRoutes = [
-            '/health',
-            '/ping',
-            '/status',
-            '/api/sanctum/csrf-cookie',
+            'health',
+            'ping',
+            'status',
+            'metrics',
         ];
 
-        return in_array($request->getPathInfo(), $safeRoutes);
-    }
-
-    /**
-     * Check if IP is blocked
-     */
-    private function isBlockedIp(Request $request): bool
-    {
-        $ip = $request->ip();
-        $blockKey = "blocked_ip:{$ip}";
-        
-        return \Cache::has($blockKey);
-    }
-
-    /**
-     * Block request with error response
-     */
-    private function blockRequest(string $message, int $status = 400): Response
-    {
-        return response()->json([
-            'error' => 'Security Violation',
-            'message' => $message,
-            'status' => $status,
-            'timestamp' => now()->toISOString(),
-        ], $status);
-    }
-
-    /**
-     * Truncate value for safe logging
-     */
-    private function truncateForLogging(string $value): string
-    {
-        return substr($value, 0, 200) . (strlen($value) > 200 ? '...' : '');
+        return in_array($request->path(), $safeRoutes);
     }
 }

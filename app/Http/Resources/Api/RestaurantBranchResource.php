@@ -35,6 +35,7 @@ class RestaurantBranchResource extends JsonResource
             'created_at' => $this->created_at->toDateTimeString(),
             'updated_at' => $this->updated_at->toDateTimeString(),
             'restaurant' => new RestaurantResource($this->whenLoaded('restaurant')),
+            'menu_items' => BranchMenuItemResource::collection($this->whenLoaded('menuItems')),
             'branch_menu_items' => BranchMenuItemResource::collection($this->whenLoaded('branchMenuItems')),
         ];
     }

@@ -91,7 +91,31 @@ final class User extends Authenticatable
      */
     public function hasPermission(string $permission): bool
     {
+        // Super admin with wildcard permissions has all permissions
+        if ($this->isSuperAdmin() && in_array('*', $this->permissions, true)) {
+            return true;
+        }
+        
         return in_array($permission, $this->permissions, true);
+    }
+
+    /**
+     * Check if the user can access a specific role (role hierarchy).
+     */
+    public function canAccessRole(string $targetRole): bool
+    {
+        $roleHierarchy = [
+            'SUPER_ADMIN' => ['SUPER_ADMIN'],
+            'RESTAURANT_OWNER' => ['RESTAURANT_OWNER', 'BRANCH_MANAGER', 'CASHIER', 'KITCHEN_STAFF', 'DELIVERY_MANAGER', 'CUSTOMER_SERVICE', 'DRIVER'],
+            'BRANCH_MANAGER' => ['BRANCH_MANAGER', 'CASHIER', 'KITCHEN_STAFF', 'DELIVERY_MANAGER', 'CUSTOMER_SERVICE', 'DRIVER'],
+            'DELIVERY_MANAGER' => ['DELIVERY_MANAGER', 'DRIVER'],
+            'CASHIER' => ['CASHIER'],
+            'KITCHEN_STAFF' => ['KITCHEN_STAFF'],
+            'CUSTOMER_SERVICE' => ['CUSTOMER_SERVICE'],
+            'DRIVER' => ['DRIVER'],
+        ];
+
+        return in_array($targetRole, $roleHierarchy[$this->role] ?? [], true);
     }
 
     /**
@@ -181,5 +205,13 @@ final class User extends Authenticatable
     public function hasMfaEnabled(): bool
     {
         return (bool) $this->is_mfa_enabled;
+    }
+
+    /**
+     * Scope to filter users by role.
+     */
+    public function scopeRole($query, string $role)
+    {
+        return $query->where('role', $role);
     }
 }
