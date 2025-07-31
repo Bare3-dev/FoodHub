@@ -19,14 +19,59 @@ class StaffController extends Controller
     public function index(Request $request): Response
     {
         \Log::info('StaffController@index called');
-        $this->authorize('viewAny', User::class);
+        
+        try {
+            $this->authorize('viewAny', User::class);
+            \Log::info('StaffController@index - authorization passed');
+        } catch (\Exception $e) {
+            \Log::error('StaffController@index - authorization failed', [
+                'error' => $e->getMessage(),
+                'user_id' => auth()->id(),
+                'user_role' => auth()->user()->role ?? 'unknown',
+            ]);
+            throw $e;
+        }
 
         // Define the number of items per page, with a default of 15 and a maximum of 100.
         $perPage = $request->input('per_page', 15);
         $perPage = min($perPage, 100);
 
+        // Build query with filters
+        $query = User::query();
+
+        // Filter by role if provided
+        if ($request->has('role')) {
+            $query->where('role', $request->input('role'));
+        }
+
+        // Filter by restaurant if provided
+        if ($request->has('restaurant_id')) {
+            $query->where('restaurant_id', $request->input('restaurant_id'));
+        }
+
+        // Filter by branch if provided
+        if ($request->has('restaurant_branch_id')) {
+            $query->where('restaurant_branch_id', $request->input('restaurant_branch_id'));
+        }
+
+        // Filter by status if provided
+        if ($request->has('status')) {
+            $query->where('status', $request->input('status'));
+        }
+
         // Retrieve users (staff) with pagination and transform them using UserResource collection.
-        return response(UserResource::collection(User::paginate($perPage)));
+        $users = $query->paginate($perPage);
+        
+        // Return the response in the format expected by tests - with data key
+        return response([
+            'data' => UserResource::collection($users->items()),
+            'current_page' => $users->currentPage(),
+            'last_page' => $users->lastPage(),
+            'per_page' => $users->perPage(),
+            'total' => $users->total(),
+            'from' => $users->firstItem(),
+            'to' => $users->lastItem(),
+        ]);
     }
 
     /**

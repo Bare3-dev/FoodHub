@@ -71,25 +71,43 @@ class InputSanitizationMiddleware
     {
         $threats = [];
 
-        // Check all input sources
-        $allInputs = array_merge(
-            $request->all(),
-            $request->headers->all(),
-            [$request->getPathInfo()],
-            [$request->getQueryString()]
-        );
+        // Flatten each input source separately and only analyze string values
+        $flatInputs = $this->flattenStrings($request->all());
+        $flatHeaders = $this->flattenStrings($request->headers->all());
+        $flatPath = $this->flattenStrings([$request->getPathInfo() ?? '']);
+        $flatQuery = $this->flattenStrings([$request->getQueryString() ?? '']);
+
+        // Merge all flat sources
+        $allInputs = array_merge($flatInputs, $flatHeaders, $flatPath, $flatQuery);
 
         foreach ($allInputs as $key => $value) {
-            if (is_array($value)) {
-                foreach ($value as $subKey => $subValue) {
-                    $threats = array_merge($threats, $this->analyzeInput($subKey, $subValue, $request));
-                }
-            } else {
+            if (is_string($value) && !empty($value)) {
                 $threats = array_merge($threats, $this->analyzeInput($key, $value, $request));
             }
         }
 
-        return array_unique($threats);
+        return $threats;
+    }
+
+    /**
+     * Recursively flatten input arrays to key => string value pairs
+     */
+    private function flattenStrings(array $input, $prefix = ''): array
+    {
+        $flat = [];
+        foreach ($input as $key => $value) {
+            if (!is_string($key) && !is_int($key)) {
+                continue;
+            }
+            $fullKey = $prefix === '' ? (string)$key : $prefix . '.' . $key;
+            if (is_array($value)) {
+                $flat = array_merge($flat, $this->flattenStrings($value, $fullKey));
+            } elseif (is_string($value)) {
+                $flat[$fullKey] = $value;
+            }
+            // Skip all other types
+        }
+        return $flat;
     }
 
     /**
@@ -201,7 +219,7 @@ class InputSanitizationMiddleware
             '/<script[^>]*>.*?<\/script>/is',
             '/<iframe[^>]*>.*?<\/iframe>/is',
             '/javascript:/i',
-            '/on\w+\s*=/i',
+            '/on(click|mouseover|error|load|mouseout|focus|blur|change|submit|reset|select|unload|resize|scroll|keydown|keyup|keypress)\s*=/i',
             '/<[^>]*?(?:onclick|onmouseover|onerror|onload|onmouseout)[^>]*>/i',
             '/eval\s*\(/i',
             '/expression\s*\(/i',

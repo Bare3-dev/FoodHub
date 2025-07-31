@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Restaurant;
 use App\Models\Customer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 use Illuminate\Support\Facades\Hash;
 
@@ -22,7 +23,7 @@ class UserTest extends TestCase
         $this->user = User::factory()->create(['role' => 'CASHIER', 'status' => 'active']); 
     }
 
-    /** @test */
+    #[Test]
     public function it_has_fillable_attributes()
     {
         $fillable = [
@@ -35,7 +36,7 @@ class UserTest extends TestCase
         $this->assertEqualsCanonicalizing($fillable, $this->user->getFillable());
     }
 
-    /** @test */
+    #[Test]
     public function it_hides_sensitive_attributes()
     {
         $hidden = [
@@ -45,7 +46,7 @@ class UserTest extends TestCase
         $this->assertEqualsCanonicalizing($hidden, $this->user->getHidden());
     }
 
-    /** @test */
+    #[Test]
     public function it_casts_attributes_correctly()
     {
         $casts = [
@@ -63,7 +64,7 @@ class UserTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function it_has_valid_role_enum_values()
     {
         $validRoles = [
@@ -79,7 +80,7 @@ class UserTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function it_belongs_to_restaurant_when_restaurant_owner()
     {
         $restaurant = Restaurant::factory()->create();
@@ -95,7 +96,7 @@ class UserTest extends TestCase
     // Removed: User model doesn't have customer relationship
     // Users are for staff only, customers use separate Customer model
 
-    /** @test */
+    #[Test]
     public function it_checks_if_user_has_role()
     {
         $adminUser = User::factory()->create(['role' => 'SUPER_ADMIN']);
@@ -108,7 +109,7 @@ class UserTest extends TestCase
         $this->assertFalse($cashierUser->hasRole('SUPER_ADMIN'));
     }
 
-    /** @test */
+    #[Test]
     public function it_checks_if_user_has_permission()
     {
         $user = User::factory()->create([
@@ -121,7 +122,7 @@ class UserTest extends TestCase
         $this->assertFalse($user->hasPermission('restaurant:manage'));
     }
 
-    /** @test */
+    #[Test]
     public function super_admin_has_all_permissions()
     {
         $superAdmin = User::factory()->create([
@@ -134,7 +135,7 @@ class UserTest extends TestCase
         $this->assertTrue($superAdmin->hasPermission('non:existent'));
     }
 
-    /** @test */
+    #[Test]
     public function it_checks_if_user_can_access_role()
     {
         $restaurantOwner = User::factory()->create(['role' => 'RESTAURANT_OWNER']);
@@ -150,7 +151,7 @@ class UserTest extends TestCase
         $this->assertFalse($branchManager->canAccessRole('RESTAURANT_OWNER'));
     }
 
-    /** @test */
+    #[Test]
     public function it_validates_email_otp_code()
     {
         $user = User::factory()->create(['email_otp_code' => Hash::make('123456'), 'email_otp_expires_at' => now()->addMinutes(5)]);
@@ -159,7 +160,7 @@ class UserTest extends TestCase
         $this->assertNull($user->email_otp_code);
     }
 
-    /** @test */
+    #[Test]
     public function it_does_not_validate_expired_email_otp_code()
     {
         $user = User::factory()->create(['email_otp_code' => Hash::make('123456'), 'email_otp_expires_at' => now()->subMinutes(1)]);
@@ -168,7 +169,7 @@ class UserTest extends TestCase
         $this->assertNull($user->email_otp_code);
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_email_otp_code()
     {
         $user = User::factory()->create(['email_otp_code' => null, 'email_otp_expires_at' => null]);
@@ -178,7 +179,7 @@ class UserTest extends TestCase
         $this->assertNotNull($user->email_otp_expires_at);
     }
 
-    /** @test */
+    #[Test]
     public function it_enables_mfa()
     {
         $user = User::factory()->create(['is_mfa_enabled' => false]);
@@ -186,7 +187,7 @@ class UserTest extends TestCase
         $this->assertTrue($user->is_mfa_enabled);
     }
 
-    /** @test */
+    #[Test]
     public function it_disables_mfa()
     {
         $user = User::factory()->create(['is_mfa_enabled' => true]);
@@ -194,7 +195,7 @@ class UserTest extends TestCase
         $this->assertFalse($user->is_mfa_enabled);
     }
 
-    /** @test */
+    #[Test]
     public function it_scopes_active_users()
     {
         User::factory()->create(['status' => 'active', 'role' => 'CASHIER']);
@@ -208,7 +209,7 @@ class UserTest extends TestCase
         $this->assertTrue($activeUsers->every(fn($user) => $user->status === 'active'));
     }
 
-    /** @test */
+    #[Test]
     public function it_scopes_users_by_role()
     {
         User::factory()->create(['role' => 'KITCHEN_STAFF']);

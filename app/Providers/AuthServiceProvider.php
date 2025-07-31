@@ -22,7 +22,7 @@ class AuthServiceProvider extends ServiceProvider
         \App\Models\BranchMenuItem::class => \App\Policies\BranchMenuItemPolicy::class,
         \App\Models\Order::class => \App\Policies\OrderPolicy::class,
         \App\Models\LoyaltyProgram::class => \App\Policies\LoyaltyProgramPolicy::class,
-        \App\Models\User::class => \App\Policies\StaffPolicy::class, // For staff management
+        \App\Models\User::class => \App\Policies\UserPolicy::class, // For staff management
     ];
 
     /**
@@ -31,6 +31,6 @@ class AuthServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerPolicies();
-        \Illuminate\Support\Facades\Gate::policy(\App\Models\User::class, \App\Policies\StaffPolicy::class);
+        \Illuminate\Support\Facades\Gate::policy(\App\Models\User::class, \App\Policies\UserPolicy::class);
     }
 } 

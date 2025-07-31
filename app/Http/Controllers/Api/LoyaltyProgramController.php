@@ -9,13 +9,14 @@ use App\Http\Requests\StoreLoyaltyProgramRequest;
 use App\Http\Requests\UpdateLoyaltyProgramRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Http\JsonResponse;
 
 class LoyaltyProgramController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request): Response
+    public function index(Request $request): JsonResponse
     {
         $this->authorize('viewAny', LoyaltyProgram::class);
 
@@ -23,14 +24,30 @@ class LoyaltyProgramController extends Controller
         $perPage = $request->input('per_page', 15);
         $perPage = min($perPage, 100);
 
+        // Build query with filters
+        $query = LoyaltyProgram::query();
+
+        // Filter by status if provided
+        if ($request->has('status')) {
+            $query->where('status', $request->input('status'));
+        }
+
+        // Filter by restaurant if provided
+        if ($request->has('restaurant_id')) {
+            $query->where('restaurant_id', $request->input('restaurant_id'));
+        }
+
         // Retrieve loyalty programs with pagination and transform them using LoyaltyProgramResource collection.
-        return response(LoyaltyProgramResource::collection(LoyaltyProgram::paginate($perPage)));
+        $loyaltyPrograms = $query->paginate($perPage);
+        
+        // Return the standard Laravel pagination response format with links and meta
+        return LoyaltyProgramResource::collection($loyaltyPrograms)->response();
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreLoyaltyProgramRequest $request): Response
+    public function store(StoreLoyaltyProgramRequest $request): JsonResponse
     {
         $this->authorize('create', LoyaltyProgram::class);
 
@@ -43,25 +60,25 @@ class LoyaltyProgramController extends Controller
 
         // Return the newly created loyalty program transformed by LoyaltyProgramResource
         // with a 201 Created status code.
-        return response(new LoyaltyProgramResource($loyaltyProgram), 201);
+        return (new LoyaltyProgramResource($loyaltyProgram))->response()->setStatusCode(201);
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(LoyaltyProgram $loyaltyProgram): Response
+    public function show(LoyaltyProgram $loyaltyProgram): JsonResponse
     {
         $this->authorize('view', $loyaltyProgram);
 
         // Return the specified loyalty program transformed by LoyaltyProgramResource.
         // Laravel's route model binding automatically retrieves the loyalty program.
-        return response(new LoyaltyProgramResource($loyaltyProgram));
+        return (new LoyaltyProgramResource($loyaltyProgram))->response();
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateLoyaltyProgramRequest $request, LoyaltyProgram $loyaltyProgram): Response
+    public function update(UpdateLoyaltyProgramRequest $request, LoyaltyProgram $loyaltyProgram): JsonResponse
     {
         $this->authorize('update', $loyaltyProgram);
 
@@ -73,7 +90,7 @@ class LoyaltyProgramController extends Controller
         $loyaltyProgram->update($validated);
 
         // Return the updated loyalty program transformed by LoyaltyProgramResource.
-        return response(new LoyaltyProgramResource($loyaltyProgram));
+        return (new LoyaltyProgramResource($loyaltyProgram))->response();
     }
 
     /**

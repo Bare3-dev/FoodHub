@@ -16,6 +16,7 @@ use App\Http\Middleware\AdvancedRateLimitMiddleware; // Add this import
 use App\Http\Middleware\ApiCorsMiddleware; // Add this import
 use App\Http\Middleware\InputSanitizationMiddleware; // Add this import
 use App\Http\Middleware\RoleAndPermissionMiddleware; // Add this import
+use Illuminate\Support\Facades\Hash; // Add this import
 
 abstract class TestCase extends BaseTestCase
 {
@@ -24,6 +25,10 @@ abstract class TestCase extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Set memory limit for tests
+        ini_set('memory_limit', '512M');
+        ini_set('max_execution_time', 300);
 
         // Explicitly bind middleware aliases for testing environment
         // This resolves "Target class [...] does not exist" errors for route middleware aliases
@@ -35,6 +40,16 @@ abstract class TestCase extends BaseTestCase
 
         // RefreshDatabase trait handles database setup efficiently for PostgreSQL
         // No need for manual migrate:fresh in setUp
+    }
+
+    protected function tearDown(): void
+    {
+        // Clean up memory after each test
+        if (function_exists('gc_collect_cycles')) {
+            gc_collect_cycles();
+        }
+        
+        parent::tearDown();
     }
 
     /**
@@ -76,17 +91,45 @@ abstract class TestCase extends BaseTestCase
     }
 
     /**
-     * Create a restaurant
+     * Create a restaurant with minimal data for testing
      */
     protected function createRestaurant(array $attributes = []): Restaurant
     {
         return Restaurant::factory()->create(array_merge([
             'status' => 'active',  // Ensure restaurant is active for tests
+            'name' => fake()->company(),
+            'description' => fake()->sentence(),
+            'cuisine_type' => fake()->randomElement(['italian', 'chinese', 'mexican', 'indian', 'american']),
+            'phone' => fake()->phoneNumber(),
+            'email' => fake()->email(),
+            'website' => fake()->url(),
+            'business_hours' => [
+                'monday' => ['open' => '09:00', 'close' => '22:00'],
+                'tuesday' => ['open' => '09:00', 'close' => '22:00'],
+                'wednesday' => ['open' => '09:00', 'close' => '22:00'],
+                'thursday' => ['open' => '09:00', 'close' => '22:00'],
+                'friday' => ['open' => '09:00', 'close' => '23:00'],
+                'saturday' => ['open' => '10:00', 'close' => '23:00'],
+                'sunday' => ['open' => '10:00', 'close' => '21:00']
+            ],
+            'settings' => [
+                'accepts_cash' => true,
+                'accepts_card' => true,
+                'max_delivery_distance' => fake()->numberBetween(5, 15),
+                'auto_accept_orders' => fake()->boolean(60),
+                'peak_hours' => [
+                    'lunch' => ['start' => '11:30', 'end' => '14:00'],
+                    'dinner' => ['start' => '17:30', 'end' => '21:00']
+                ]
+            ],
+            'commission_rate' => fake()->randomFloat(2, 5.00, 20.00),
+            'is_featured' => fake()->boolean(20),
+            'verified_at' => fake()->boolean(80) ? fake()->dateTimeBetween('-1 year', 'now') : null,
         ], $attributes));
     }
 
     /**
-     * Create a restaurant branch
+     * Create a restaurant branch with minimal data for testing
      */
     protected function createRestaurantBranch(array $attributes = []): RestaurantBranch
     {
@@ -95,23 +138,123 @@ abstract class TestCase extends BaseTestCase
         return RestaurantBranch::factory()->create(array_merge([
             'restaurant_id' => $restaurant,
             'status' => 'active',
+            'name' => fake()->company() . ' Branch',
+            'slug' => fake()->unique()->slug(3),
+            'address' => fake()->streetAddress(),
+            'city' => fake()->city(),
+            'state' => fake()->state(),
+            'postal_code' => fake()->postcode(),
+            'country' => 'SA',
+            'latitude' => fake()->latitude(),
+            'longitude' => fake()->longitude(),
+            'phone' => fake()->phoneNumber(),
+            'manager_name' => fake()->name(),
+            'manager_phone' => fake()->phoneNumber(),
+            'operating_hours' => [
+                'monday' => ['open' => '09:00', 'close' => '22:00'],
+                'tuesday' => ['open' => '09:00', 'close' => '22:00'],
+                'wednesday' => ['open' => '09:00', 'close' => '22:00'],
+                'thursday' => ['open' => '09:00', 'close' => '22:00'],
+                'friday' => ['open' => '09:00', 'close' => '23:00'],
+                'saturday' => ['open' => '10:00', 'close' => '23:00'],
+                'sunday' => ['open' => '10:00', 'close' => '21:00']
+            ],
+            'delivery_zones' => [
+                [
+                    'name' => 'Primary Zone',
+                    'coordinates' => [
+                        ['lat' => fake()->latitude(), 'lng' => fake()->longitude()],
+                        ['lat' => fake()->latitude(), 'lng' => fake()->longitude()],
+                        ['lat' => fake()->latitude(), 'lng' => fake()->longitude()],
+                        ['lat' => fake()->latitude(), 'lng' => fake()->longitude()]
+                    ],
+                    'delivery_fee' => fake()->randomFloat(2, 2, 8),
+                    'estimated_time' => fake()->numberBetween(20, 45)
+                ]
+            ],
+            'delivery_fee' => fake()->randomFloat(2, 2, 8),
+            'minimum_order_amount' => fake()->randomFloat(2, 10, 50),
+            'estimated_delivery_time' => fake()->numberBetween(20, 45),
+            'accepts_online_orders' => true,
+            'accepts_delivery' => true,
+            'accepts_pickup' => true,
+            'settings' => [
+                'auto_accept_orders' => fake()->boolean(60),
+                'max_delivery_distance' => fake()->numberBetween(5, 15),
+                'peak_hours' => [
+                    'lunch' => ['start' => '11:30', 'end' => '14:00'],
+                    'dinner' => ['start' => '17:30', 'end' => '21:00']
+                ]
+            ],
         ], $attributes));
     }
 
     /**
-     * Create a customer with address
+     * Create a customer with minimal data for testing
      */
     protected function createCustomer(array $attributes = []): Customer
     {
-        return Customer::factory()->create($attributes);
+        return Customer::factory()->create(array_merge([
+            'first_name' => fake()->firstName(),
+            'last_name' => fake()->lastName(),
+            'email' => fake()->unique()->safeEmail(),
+            'phone' => fake()->phoneNumber(),
+            'date_of_birth' => fake()->date('Y-m-d', '-18 years'),
+            'email_verified_at' => now(),
+            'password' => Hash::make('password'),
+            'preferences' => json_encode([
+                'dietary_restrictions' => fake()->randomElements(['vegetarian', 'vegan', 'gluten_free', 'dairy_free'], fake()->numberBetween(0, 2)),
+                'favorite_cuisines' => fake()->randomElements(['italian', 'chinese', 'mexican', 'indian', 'american'], fake()->numberBetween(1, 3)),
+                'spice_level' => fake()->randomElement(['mild', 'medium', 'hot', 'extra_hot']),
+                'notifications' => [
+                    'email' => fake()->boolean(80),
+                    'sms' => fake()->boolean(60),
+                    'push' => fake()->boolean(90)
+                ]
+            ]),
+            'status' => 'active',
+            'created_at' => fake()->dateTimeBetween('-2 years', 'now'),
+        ], $attributes));
     }
 
     /**
-     * Create a driver
+     * Create a driver with minimal data for testing
      */
     protected function createDriver(array $attributes = []): Driver
     {
-        return Driver::factory()->create($attributes);
+        return Driver::factory()->create(array_merge([
+            'first_name' => fake()->firstName(),
+            'last_name' => fake()->lastName(),
+            'email' => fake()->unique()->safeEmail(),
+            'phone' => fake()->phoneNumber(),
+            'date_of_birth' => fake()->date('Y-m-d', '-25 years'),
+            'national_id' => fake()->numerify('##########'),
+            'driver_license_number' => fake()->numerify('DL########'),
+            'license_expiry_date' => fake()->dateTimeBetween('now', '+2 years'),
+            'profile_image_url' => null,
+            'license_image_url' => null,
+            'vehicle_type' => fake()->randomElement(['motorcycle', 'car', 'bicycle']),
+            'vehicle_make' => fake()->randomElement(['Honda', 'Toyota', 'Yamaha']),
+            'vehicle_model' => fake()->randomElement(['CBR150R', 'Corolla', 'R15']),
+            'vehicle_year' => fake()->numberBetween(2015, 2024),
+            'vehicle_color' => fake()->colorName(),
+            'vehicle_plate_number' => fake()->regexify('[A-Z]{3}[0-9]{3}'),
+            'vehicle_image_url' => null,
+            'status' => 'active',
+            'is_online' => fake()->boolean(30),
+            'is_available' => fake()->boolean(70),
+            'current_latitude' => fake()->latitude(),
+            'current_longitude' => fake()->longitude(),
+            'rating' => fake()->randomFloat(1, 3, 5),
+            'total_deliveries' => fake()->numberBetween(0, 1000),
+            'completed_deliveries' => fake()->numberBetween(0, 950),
+            'cancelled_deliveries' => fake()->numberBetween(0, 50),
+            'total_earnings' => fake()->randomFloat(2, 0, 10000),
+            'documents' => json_encode([
+                'license' => 'license_url',
+                'insurance' => 'insurance_url'
+            ]),
+        ], $attributes));
     }
 
     /**

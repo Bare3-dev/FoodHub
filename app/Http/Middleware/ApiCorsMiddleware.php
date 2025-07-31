@@ -59,7 +59,10 @@ class ApiCorsMiddleware
         $allowedMethods = $this->getAllowedMethods($corsType);
 
         // Check if origin is allowed
-        if ($this->isOriginAllowed($origin, $allowedOrigins)) {
+        if ($corsType === 'public') {
+            // For public endpoints, always allow all origins
+            $response->headers->set('Access-Control-Allow-Origin', '*');
+        } elseif ($this->isOriginAllowed($origin, $allowedOrigins)) {
             $response->headers->set('Access-Control-Allow-Origin', $origin);
         }
 
@@ -192,7 +195,7 @@ class ApiCorsMiddleware
     {
         switch ($corsType) {
             case 'public':
-                return ['GET', 'HEAD', 'OPTIONS'];
+                return ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS'];
 
             case 'admin':
             case 'private':

@@ -117,11 +117,6 @@ class HttpsEnforcementMiddleware
             // Server information hiding
             'X-Powered-By' => 'FoodHub-API',
             'Server' => 'FoodHub-Secure',
-            
-            // Cache control for sensitive data
-            'Cache-Control' => 'no-store, no-cache, must-revalidate, private',
-            'Pragma' => 'no-cache',
-            'Expires' => '0',
         ];
 
         // Apply environment-specific headers
@@ -135,6 +130,17 @@ class HttpsEnforcementMiddleware
         // Add all headers to response
         foreach ($headers as $key => $value) {
             $response->headers->set($key, $value);
+        }
+
+        // Set cache headers only if not already set
+        if (!$response->headers->has('Cache-Control')) {
+            $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+        }
+        if (!$response->headers->has('Pragma')) {
+            $response->headers->set('Pragma', 'no-cache');
+        }
+        if (!$response->headers->has('Expires')) {
+            $response->headers->set('Expires', '0');
         }
 
         // Log security header application for monitoring

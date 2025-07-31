@@ -79,6 +79,14 @@ final class User extends Authenticatable
     }
 
     /**
+     * Get the security logs for this user.
+     */
+    public function securityLogs(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(SecurityLog::class);
+    }
+
+    /**
      * Check if the user has a specific role.
      */
     public function hasRole(string $role): bool

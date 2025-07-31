@@ -26,18 +26,17 @@ class UpdateCustomerAddressRequest extends FormRequest
         // $customerAddressId = $this->route('customer_address') ? $this->route('customer_address')->id : null;
 
         return [
-            'customer_id' => 'exists:customers,id',
-            'address_line_1' => 'string|max:255',
-            'address_line_2' => 'nullable|string|max:255',
+            'street_address' => 'string|max:255',
+            'apartment_number' => 'nullable|string|max:255',
             'city' => 'string|max:255',
             'state' => 'string|max:255',
             'postal_code' => 'string|max:20',
             'country' => 'string|max:255',
-            'latitude' => 'numeric|between:-90,90',
-            'longitude' => 'numeric|between:-180,180',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
             'is_default' => 'boolean',
-            'address_type' => 'nullable|string|max:50',
-            'notes' => 'nullable|string',
+            'label' => 'nullable|string|max:50',
+            'delivery_notes' => 'nullable|string',
         ];
     }
 }

@@ -7,11 +7,16 @@ use App\Models\Order;
 use App\Http\Resources\Api\OrderResource;
 use App\Http\Requests\StoreOrderRequest;
 use App\Http\Requests\UpdateOrderRequest;
+use App\Services\LoyaltyService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 class OrderController extends Controller
 {
+    public function __construct(
+        private readonly LoyaltyService $loyaltyService
+    ) {}
+
     /**
      * Display a listing of the resource.
      */
@@ -38,8 +43,65 @@ class OrderController extends Controller
         // Access the validated data directly.
         $validated = $request->validated();
 
+        // Extract loyalty points used for processing
+        $loyaltyPointsUsed = $validated['loyalty_points_used'] ?? 0.00;
+        unset($validated['loyalty_points_used']); // Remove from validated data to avoid mass assignment
+
+        // Debug logging
+        \Log::info('Order creation - loyalty points used:', [
+            'loyalty_points_used' => $loyaltyPointsUsed,
+            'validated_data' => $validated
+        ]);
+
         // Create a new Order record with the validated data.
         $order = Order::create($validated);
+
+        // Log security event for order creation
+        app(\App\Services\SecurityLoggingService::class)->logSecurityEvent(
+            auth()->user(),
+            'order_created',
+            [
+                'order_id' => $order->id,
+                'customer_id' => $order->customer_id,
+                'total_amount' => $order->total_amount,
+                'loyalty_points_used' => $loyaltyPointsUsed
+            ],
+            'info',
+            'App\Models\Order',
+            $order->id
+        );
+
+        // Process loyalty points for the order (earning)
+        $this->loyaltyService->processOrderLoyaltyPoints($order);
+
+        // Process loyalty points redemption if points are being used
+        if ($loyaltyPointsUsed > 0) {
+            \Log::info('Processing loyalty points redemption:', [
+                'order_id' => $order->id,
+                'points_to_use' => $loyaltyPointsUsed
+            ]);
+
+            // Validate that the customer has enough points
+            if ($this->loyaltyService->validatePointsRedemption($order, $loyaltyPointsUsed)) {
+                $this->loyaltyService->processPointsRedemption($order, $loyaltyPointsUsed);
+                \Log::info('Loyalty points redemption processed successfully');
+            } else {
+                \Log::warning('Loyalty points redemption validation failed');
+                // If validation fails, return an error
+                return response([
+                    'success' => false,
+                    'message' => 'Insufficient loyalty points for redemption.',
+                    'errors' => [
+                        'loyalty_points_used' => ['The customer does not have enough points for this redemption.']
+                    ]
+                ], 422);
+            }
+        }
+
+        // Set the loyalty_points_used on the order if it was provided in the request
+        if ($loyaltyPointsUsed > 0) {
+            $order->update(['loyalty_points_used' => $loyaltyPointsUsed]);
+        }
 
         // Return the newly created order transformed by OrderResource
         // with a 201 Created status code.

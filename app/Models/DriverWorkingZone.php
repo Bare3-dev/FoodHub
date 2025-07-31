@@ -57,4 +57,17 @@ final class DriverWorkingZone extends Model
     {
         return $query->where('is_active', true);
     }
+
+    /**
+     * Custom route model binding to handle invalid IDs gracefully
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        // Check if the value is a valid integer
+        if (!is_numeric($value) || (int)$value <= 0) {
+            abort(404, 'Driver working zone not found.');
+        }
+
+        return parent::resolveRouteBinding($value, $field);
+    }
 } 

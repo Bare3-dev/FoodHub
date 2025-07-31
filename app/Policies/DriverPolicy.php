@@ -11,32 +11,64 @@ class DriverPolicy
     /**
      * Determine whether the user can view any models.
      */
-    public function viewAny(User $user): bool
+    public function viewAny(?User $user): bool
     {
+        // Handle null user
+        if (!$user) {
+            return false;
+        }
+
+        // Check if user is active
+        if ($user->status !== 'active') {
+            return false;
+        }
+
         return $user->isSuperAdmin() || 
                $user->hasRole('DELIVERY_MANAGER') ||
-               ($user->hasRole('RESTAURANT_OWNER') && !is_null($user->restaurant_id)) ||
-               ($user->hasRole('BRANCH_MANAGER') && !is_null($user->restaurant_branch_id));
+               $user->hasRole('RESTAURANT_OWNER') ||
+               $user->hasRole('BRANCH_MANAGER') ||
+               $user->hasRole('CASHIER') ||
+               $user->hasRole('CUSTOMER_SERVICE');
     }
 
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, Driver $driver): bool
+    public function view(?User $user, ?Driver $driver): bool
     {
+        // Handle null values
+        if (!$user || !$driver) {
+            return false;
+        }
+
+        // Check if user is active
+        if ($user->status !== 'active') {
+            return false;
+        }
+
         return $user->isSuperAdmin() ||
                $user->hasRole('DELIVERY_MANAGER') ||
-               ($user->hasRole('RESTAURANT_OWNER') && $driver->workingZones()->where('restaurant_id', $user->restaurant_id)->exists()) ||
-               ($user->hasRole('RESTAURANT_OWNER') && $driver->orderAssignments()->whereHas('order', function ($query) use ($user) { $query->where('restaurant_id', $user->restaurant_id); })->exists()) ||
-               ($user->hasRole('BRANCH_MANAGER') && $driver->workingZones()->where('restaurant_branch_id', $user->restaurant_branch_id)->exists()) ||
-               ($user->hasRole('BRANCH_MANAGER') && $driver->orderAssignments()->whereHas('order', function ($query) use ($user) { $query->where('restaurant_branch_id', $user->restaurant_branch_id); })->exists());
+               $user->hasRole('RESTAURANT_OWNER') ||
+               $user->hasRole('BRANCH_MANAGER') ||
+               $user->hasRole('CASHIER') ||
+               $user->hasRole('CUSTOMER_SERVICE');
     }
 
     /**
      * Determine whether the user can create models.
      */
-    public function create(User $user): bool
+    public function create(?User $user): bool
     {
+        // Handle null user
+        if (!$user) {
+            return false;
+        }
+
+        // Check if user is active
+        if ($user->status !== 'active') {
+            return false;
+        }
+
         return $user->isSuperAdmin() || 
                $user->hasRole('RESTAURANT_OWNER') || 
                $user->hasRole('BRANCH_MANAGER') || 
@@ -46,41 +78,78 @@ class DriverPolicy
     /**
      * Determine whether the user can update the model.
      */
-    public function update(User $user, Driver $driver): bool
+    public function update(?User $user, ?Driver $driver): bool
     {
+        // Handle null values
+        if (!$user || !$driver) {
+            return false;
+        }
+
+        // Check if user is active
+        if ($user->status !== 'active') {
+            return false;
+        }
+
         return $user->isSuperAdmin() || 
                $user->hasRole('DELIVERY_MANAGER') ||
-               ($user->hasRole('RESTAURANT_OWNER') && $driver->workingZones()->where('restaurant_id', $user->restaurant_id)->exists()) ||
-               ($user->hasRole('RESTAURANT_OWNER') && $driver->orderAssignments()->whereHas('order', function ($query) use ($user) { $query->where('restaurant_id', $user->restaurant_id); })->exists()) ||
-               ($user->hasRole('BRANCH_MANAGER') && $driver->workingZones()->where('restaurant_branch_id', $user->restaurant_branch_id)->exists()) ||
-               ($user->hasRole('BRANCH_MANAGER') && $driver->orderAssignments()->whereHas('order', function ($query) use ($user) { $query->where('restaurant_branch_id', $user->restaurant_branch_id); })->exists());
+               $user->hasRole('RESTAURANT_OWNER') ||
+               $user->hasRole('BRANCH_MANAGER');
     }
 
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, Driver $driver): bool
+    public function delete(?User $user, ?Driver $driver): bool
     {
+        // Handle null values
+        if (!$user || !$driver) {
+            return false;
+        }
+
+        // Check if user is active
+        if ($user->status !== 'active') {
+            return false;
+        }
+
         return $user->isSuperAdmin() || 
-               ($user->hasRole('RESTAURANT_OWNER') && $driver->workingZones()->where('restaurant_id', $user->restaurant_id)->exists()) ||
-               ($user->hasRole('RESTAURANT_OWNER') && $driver->orderAssignments()->whereHas('order', function ($query) use ($user) { $query->where('restaurant_id', $user->restaurant_id); })->exists()) ||
-               ($user->hasRole('BRANCH_MANAGER') && $driver->workingZones()->where('restaurant_branch_id', $user->restaurant_branch_id)->exists()) ||
-               ($user->hasRole('BRANCH_MANAGER') && $driver->orderAssignments()->whereHas('order', function ($query) use ($user) { $query->where('restaurant_branch_id', $user->restaurant_branch_id); })->exists());
+               $user->hasRole('RESTAURANT_OWNER') ||
+               $user->hasRole('BRANCH_MANAGER') ||
+               $user->hasRole('DELIVERY_MANAGER');
     }
 
     /**
      * Determine whether the user can restore the model.
      */
-    public function restore(User $user, Driver $driver): bool
+    public function restore(?User $user, ?Driver $driver): bool
     {
+        // Handle null values
+        if (!$user || !$driver) {
+            return false;
+        }
+
+        // Check if user is active
+        if ($user->status !== 'active') {
+            return false;
+        }
+
         return $user->isSuperAdmin();
     }
 
     /**
      * Determine whether the user can permanently delete the model.
      */
-    public function forceDelete(User $user, Driver $driver): bool
+    public function forceDelete(?User $user, ?Driver $driver): bool
     {
+        // Handle null values
+        if (!$user || !$driver) {
+            return false;
+        }
+
+        // Check if user is active
+        if ($user->status !== 'active') {
+            return false;
+        }
+
         return $user->isSuperAdmin();
     }
 }

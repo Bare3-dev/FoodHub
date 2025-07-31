@@ -46,13 +46,12 @@ class DriverResource extends JsonResource
             'cancelled_deliveries' => $this->cancelled_deliveries,
             'total_earnings' => $this->total_earnings,
             'documents' => $this->documents,
-            'banking_info' => $this->banking_info,
             'email_verified_at' => $this->whenNotNull($this->email_verified_at ? $this->email_verified_at->toDateTimeString() : null),
             'phone_verified_at' => $this->whenNotNull($this->phone_verified_at ? $this->phone_verified_at->toDateTimeString() : null),
             'verified_at' => $this->whenNotNull($this->verified_at ? $this->verified_at->toDateTimeString() : null),
             'last_active_at' => $this->whenNotNull($this->last_active_at ? $this->last_active_at->toDateTimeString() : null),
-            'created_at' => $this->created_at->toDateTimeString(),
-            'updated_at' => $this->updated_at->toDateTimeString(),
+            'created_at' => $this->created_at?->toDateTimeString(),
+            'updated_at' => $this->updated_at?->toDateTimeString(),
             'working_zones' => DriverWorkingZoneResource::collection($this->whenLoaded('workingZones')),
         ];
     }

@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use App\Models\SecurityLog;
+use App\Models\User;
 
 /**
  * Security Incident Logging Service
@@ -435,5 +437,147 @@ class SecurityLoggingService
             ],
             'generated_at' => now()->toISOString(),
         ];
+    }
+
+    /**
+     * Log a security event to the database
+     */
+    public function logSecurityEvent(
+        ?User $user,
+        string $eventType,
+        array $details = [],
+        string $severity = 'info',
+        ?string $targetType = null,
+        ?int $targetId = null
+    ): SecurityLog {
+        if (empty($eventType)) {
+            throw new \InvalidArgumentException('Event type cannot be empty');
+        }
+        
+        // Mask sensitive data
+        $maskedDetails = $this->maskSensitiveData($details);
+        
+        return SecurityLog::logEvent(
+            $eventType,
+            $user?->id,
+            request()->ip(),
+            request()->userAgent(),
+            session()->getId(),
+            array_merge($maskedDetails, [
+                'severity_level' => $severity,
+                'logged_at' => now()->toISOString(),
+            ]),
+            $targetType,
+            $targetId
+        );
+    }
+
+    /**
+     * Mask sensitive data in log details
+     */
+    private function maskSensitiveData(array $details): array
+    {
+        $sensitiveKeys = [
+            'password', 'password_hash', 'old_password_hash', 'new_password_hash',
+            'token', 'api_key', 'secret', 'key', 'credential'
+        ];
+        
+        $masked = [];
+        foreach ($details as $key => $value) {
+            if (is_array($value)) {
+                $masked[$key] = $this->maskSensitiveData($value);
+            } elseif (is_string($value) && $this->isSensitiveKey($key, $sensitiveKeys)) {
+                $masked[$key] = '***' . substr($value, -4);
+            } else {
+                $masked[$key] = $value;
+            }
+        }
+        
+        return $masked;
+    }
+
+    /**
+     * Check if a key contains sensitive information
+     */
+    private function isSensitiveKey(string $key, array $sensitiveKeys): bool
+    {
+        $lowerKey = strtolower($key);
+        foreach ($sensitiveKeys as $sensitiveKey) {
+            if (str_contains($lowerKey, $sensitiveKey)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Log a user action with resource details
+     */
+    public function logUserAction(
+        User $user,
+        string $action,
+        string $resource,
+        int $resourceId,
+        array $changes = []
+    ): SecurityLog {
+        return $this->logSecurityEvent($user, $action, [
+            'resource' => $resource,
+            'resource_id' => $resourceId,
+            'changes' => $changes,
+            'action_timestamp' => now()->toISOString(),
+        ]);
+    }
+
+    /**
+     * Rotate old security logs (delete logs older than 90 days)
+     */
+    public function rotateOldLogs(): int
+    {
+        $cutoffDate = now()->subDays(90);
+        return SecurityLog::where('created_at', '<', $cutoffDate)->delete();
+    }
+
+    /**
+     * Get logs by user
+     */
+    public function getLogsByUser(User $user, int $limit = 50): \Illuminate\Database\Eloquent\Collection
+    {
+        return SecurityLog::where('user_id', $user->id)
+            ->orderBy('created_at', 'desc')
+            ->limit($limit)
+            ->get();
+    }
+
+    /**
+     * Get logs by event type
+     */
+    public function getLogsByEventType(string $eventType, int $limit = 50): \Illuminate\Database\Eloquent\Collection
+    {
+        return SecurityLog::where('event_type', $eventType)
+            ->orderBy('created_at', 'desc')
+            ->limit($limit)
+            ->get();
+    }
+
+    /**
+     * Get logs by severity level
+     */
+    public function getLogsBySeverity(string $severity, int $limit = 50): \Illuminate\Database\Eloquent\Collection
+    {
+        return SecurityLog::whereJsonContains('metadata->severity_level', $severity)
+            ->orderBy('created_at', 'desc')
+            ->limit($limit)
+            ->get();
+    }
+
+    /**
+     * Get logs by date range
+     */
+    public function getLogsByDateRange(Carbon $startDate, Carbon $endDate, int $limit = 50): \Illuminate\Database\Eloquent\Collection
+    {
+        return SecurityLog::whereBetween('created_at', [$startDate, $endDate])
+            ->orderBy('created_at', 'desc')
+            ->limit($limit)
+            ->get();
     }
 } 

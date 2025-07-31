@@ -18,7 +18,7 @@ class BranchMenuItemResource extends JsonResource
             'id' => $this->id,
             'restaurant_branch_id' => $this->restaurant_branch_id,
             'menu_item_id' => $this->menu_item_id,
-            'price' => $this->price,
+            'price_override' => $this->price,
             'is_available' => $this->is_available,
             'is_recommended' => $this->is_recommended,
             'stock_quantity' => $this->stock_quantity,

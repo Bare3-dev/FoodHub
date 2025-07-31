@@ -78,18 +78,9 @@ class LoginRequest extends FormRequest
             Auth::logout(); // Log out the user immediately if inactive
             RateLimiter::hit($this->throttleKey()); // Treat as a failed attempt for rate limiting
 
-            // For API requests, return 403 with proper JSON structure  
+            // For API requests, throw HTTP exception with 403 status
             if ($this->expectsJson()) {
-                $validator = validator([], []);
-                $validator->errors()->add('email', __('auth.inactive_account'));
-                
-                $response = response()->json([
-                    'success' => false,
-                    'message' => __('auth.inactive_account'),
-                    'errors' => $validator->errors(),
-                ], 403);
-                
-                throw new ValidationException($validator, $response);
+                abort(403, 'Your account is inactive. Please contact support for assistance.');
             }
             
 

@@ -33,7 +33,7 @@ class MenuItemResource extends JsonResource
             'nutritional_info' => $this->nutritional_info,
             'created_at' => $this->created_at->toDateTimeString(),
             'updated_at' => $this->updated_at->toDateTimeString(),
-            'category' => new MenuCategoryResource($this->whenLoaded('menuCategory')),
+            'category' => new MenuCategoryResource($this->whenLoaded('category')),
             'restaurant' => new RestaurantResource($this->whenLoaded('restaurant')),
         ];
     }

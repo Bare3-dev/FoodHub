@@ -4,6 +4,7 @@ namespace Tests\Unit\Services;
 
 use App\Services\EncryptionService;
 use App\Exceptions\SecurityException;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class EncryptionServiceTest extends TestCase
@@ -16,7 +17,7 @@ class EncryptionServiceTest extends TestCase
         $this->encryptionService = new EncryptionService();
     }
 
-    /** @test */
+    #[Test]
     public function it_encrypts_and_decrypts_data_successfully()
     {
         $originalData = 'sensitive user data';
@@ -28,7 +29,7 @@ class EncryptionServiceTest extends TestCase
         $this->assertEquals($originalData, $decrypted);
     }
 
-    /** @test */
+    #[Test]
     public function it_encrypts_different_data_to_different_ciphertexts()
     {
         $data1 = 'first piece of data';
@@ -40,7 +41,7 @@ class EncryptionServiceTest extends TestCase
         $this->assertNotEquals($encrypted1, $encrypted2);
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_different_ciphertexts_for_same_data()
     {
         $data = 'same data encrypted twice';
@@ -56,7 +57,7 @@ class EncryptionServiceTest extends TestCase
         $this->assertEquals($data, $this->encryptionService->decrypt($encrypted2));
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_empty_data()
     {
         $encrypted = $this->encryptionService->encrypt('');
@@ -65,7 +66,7 @@ class EncryptionServiceTest extends TestCase
         $this->assertEquals('', $decrypted);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_large_data()
     {
         $largeData = str_repeat('Lorem ipsum dolor sit amet, consectetur adipiscing elit. ', 1000);
@@ -76,7 +77,7 @@ class EncryptionServiceTest extends TestCase
         $this->assertEquals($largeData, $decrypted);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_special_characters()
     {
         $specialData = "Special chars: àáâãäåæçèéêë ñò óôõöø ùúûüý þÿ 中文 🚀 ñáéíóú";
@@ -87,7 +88,7 @@ class EncryptionServiceTest extends TestCase
         $this->assertEquals($specialData, $decrypted);
     }
 
-    /** @test */
+    #[Test]
     public function it_throws_exception_for_invalid_encrypted_data()
     {
         $this->expectException(SecurityException::class);
@@ -96,7 +97,7 @@ class EncryptionServiceTest extends TestCase
         $this->encryptionService->decrypt('invalid_encrypted_data');
     }
 
-    /** @test */
+    #[Test]
     public function it_throws_exception_for_malformed_encrypted_data()
     {
         $this->expectException(SecurityException::class);
@@ -105,7 +106,7 @@ class EncryptionServiceTest extends TestCase
         $this->encryptionService->decrypt(base64_encode('malformed_data'));
     }
 
-    /** @test */
+    #[Test]
     public function it_throws_exception_for_tampered_data()
     {
         $originalData = 'secret information';
@@ -120,7 +121,7 @@ class EncryptionServiceTest extends TestCase
         $this->encryptionService->decrypt($tamperedEncrypted);
     }
 
-    /** @test */
+    #[Test]
     public function it_encrypts_sensitive_pii_data()
     {
         $sensitiveData = [
@@ -138,7 +139,7 @@ class EncryptionServiceTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function it_validates_pii_type()
     {
         $this->expectException(SecurityException::class);
@@ -147,7 +148,7 @@ class EncryptionServiceTest extends TestCase
         $this->encryptionService->encryptPII('some data', 'invalid_type');
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_secure_hashes()
     {
         $data = 'data to hash';
@@ -161,7 +162,7 @@ class EncryptionServiceTest extends TestCase
         $this->assertTrue($this->encryptionService->verifyHash($data, $hash2)); // Both hashes should verify
     }
 
-    /** @test */
+    #[Test]
     public function it_verifies_hashes_correctly()
     {
         $data = 'password123';
@@ -171,7 +172,7 @@ class EncryptionServiceTest extends TestCase
         $this->assertFalse($this->encryptionService->verifyHash('wrong_password', $hash));
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_secure_tokens()
     {
         $token1 = $this->encryptionService->generateSecureToken();
@@ -182,7 +183,7 @@ class EncryptionServiceTest extends TestCase
         $this->assertTrue(ctype_alnum($token1)); // Should be alphanumeric
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_tokens_with_custom_length()
     {
         $length = 32;
@@ -191,7 +192,7 @@ class EncryptionServiceTest extends TestCase
         $this->assertEquals($length, strlen($token));
     }
 
-    /** @test */
+    #[Test]
     public function it_masks_sensitive_data()
     {
         $phoneNumber = '+1234567890';
@@ -207,7 +208,7 @@ class EncryptionServiceTest extends TestCase
         $this->assertEquals('4111-****-****-1111', $maskedCard);
     }
 
-    /** @test */
+    #[Test]
     public function it_safely_compares_strings()
     {
         $string1 = 'secret_token_123';
@@ -218,7 +219,7 @@ class EncryptionServiceTest extends TestCase
         $this->assertFalse($this->encryptionService->safeStringCompare($string1, $string3));
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_hmac_signatures()
     {
         $data = 'important message';
@@ -231,7 +232,7 @@ class EncryptionServiceTest extends TestCase
         $this->assertTrue($this->encryptionService->verifyHmac($data, $signature1, $key));
     }
 
-    /** @test */
+    #[Test]
     public function it_validates_data_integrity_with_hmac()
     {
         $data = 'critical data';

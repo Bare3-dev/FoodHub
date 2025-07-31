@@ -393,6 +393,20 @@ class Handler extends ExceptionHandler
      */
     protected function handleDatabaseException(QueryException $e, bool $isProduction): array
     {
+        // Check if this is an invalid ID error (PostgreSQL error 22P02)
+        if (str_contains($e->getMessage(), '22P02') && str_contains($e->getMessage(), 'invalid input syntax for type bigint')) {
+            return [
+                'status' => 404,
+                'data' => [
+                    'error' => 'Resource Not Found',
+                    'message' => 'The requested resource could not be found.',
+                    'error_code' => 'RESOURCE_NOT_FOUND',
+                    'timestamp' => now()->toISOString(),
+                    'request_id' => $this->generateRequestId(),
+                ]
+            ];
+        }
+
         // In production, hide database details for security
         if ($isProduction) {
             return [

@@ -29,7 +29,7 @@ class UpdateDriverRequest extends FormRequest
             'first_name' => 'string|max:255',
             'last_name' => 'string|max:255',
             'email' => 'string|email|max:255|unique:drivers,email,' . $driverId,
-            'phone' => 'string|max:20|unique:drivers,phone,' . $driverId,
+            'phone' => 'string|min:10|max:20|unique:drivers,phone,' . $driverId,
             'password' => 'nullable|string|min:8',
             'date_of_birth' => 'date',
             'national_id' => 'string|max:255|unique:drivers,national_id,' . $driverId,

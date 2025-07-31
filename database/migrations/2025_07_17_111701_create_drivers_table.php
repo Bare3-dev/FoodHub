@@ -50,7 +50,7 @@ return new class extends Migration
             $table->timestamp('verified_at')->nullable();
             $table->timestamp('last_active_at')->nullable();
             $table->jsonb('documents')->default('{}'); // Storage for verification documents
-            $table->jsonb('banking_info')->default('{}'); // Encrypted banking information
+            $table->text('banking_info')->nullable(); // Encrypted banking information
             $table->rememberToken();
             $table->timestamps();
             

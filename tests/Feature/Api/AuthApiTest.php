@@ -5,7 +5,9 @@ namespace Tests\Feature\Api;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use App\Http\Middleware\AdvancedRateLimitMiddleware;
 
 class AuthApiTest extends TestCase
 {
@@ -13,7 +15,7 @@ class AuthApiTest extends TestCase
 
     const LOGIN_URL = '/api/auth/login';
 
-    /** @test */
+    #[Test]
     public function user_can_login_via_api_with_valid_credentials()
     {
         $user = User::factory()->create([
@@ -47,7 +49,7 @@ class AuthApiTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function user_cannot_login_with_invalid_credentials(): void
     {
         $user = $this->createUser();
@@ -70,7 +72,7 @@ class AuthApiTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function inactive_user_cannot_login()
     {
         User::factory()->create([
@@ -87,7 +89,7 @@ class AuthApiTest extends TestCase
         $this->assertApiError($response, 403, 'Your account is inactive. Please contact support for assistance.');
     }
 
-    /** @test */
+    #[Test]
     public function user_with_mfa_enabled_receives_mfa_challenge()
     {
         $user = User::factory()->create([
@@ -118,7 +120,7 @@ class AuthApiTest extends TestCase
                  ]);
     }
 
-    /** @test */
+    #[Test]
     public function user_can_complete_mfa_verification()
     {
         $user = User::factory()->create([
@@ -151,7 +153,7 @@ class AuthApiTest extends TestCase
                  ->assertJson(['success' => true]);
     }
 
-    /** @test */
+    #[Test]
     public function mfa_verification_fails_with_invalid_code()
     {
         $user = User::factory()->create([
@@ -174,7 +176,7 @@ class AuthApiTest extends TestCase
         $this->assertApiError($response, 401, 'Invalid MFA code or MFA not enabled for this user.');
     }
 
-    /** @test */
+    #[Test]
     public function mfa_verification_fails_with_expired_temp_token()
     {
         $user = User::factory()->create([
@@ -197,15 +199,25 @@ class AuthApiTest extends TestCase
         $this->assertApiError($response, 401, 'Invalid or expired temporary token.');
     }
 
-    /** @test */
-    public function user_can_use_backup_code_for_mfa()
+    #[Test]
+    public function mfa_verification_requires_otp_code()
     {
-        // Removed this test for now as backup_codes are not directly in User model anymore.
-        // If backup codes are handled by a service or separate table, this test would need to be re-evaluated.
-        $this->markTestSkipped('Backup codes functionality needs re-evaluation based on current MFA implementation.');
+        $user = User::factory()->create(['is_mfa_enabled' => true]); // Ensure MFA is enabled for this test
+        $tempToken = encrypt([
+            'user_id' => $user->id,
+            'expires_at' => now()->addMinutes(5),
+            'purpose' => 'mfa_verification'
+        ]);
+
+        $response = $this->postJson('/api/auth/mfa/verify', [
+            'temp_token' => $tempToken
+        ]);
+
+        // Expect validation error for missing otp
+        $this->assertValidationErrors($response, ['otp']);
     }
 
-    /** @test */
+    #[Test]
     public function authenticated_user_can_logout()
     {
         $user = $this->createUser();
@@ -224,7 +236,7 @@ class AuthApiTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function login_validates_required_fields()
     {
         $response = $this->postJson('/api/auth/login', []);
@@ -232,7 +244,7 @@ class AuthApiTest extends TestCase
         $this->assertValidationErrors($response, ['email', 'password']);
     }
 
-    /** @test */
+    #[Test]
     public function login_validates_email_format()
     {
         $response = $this->postJson('/api/auth/login', [
@@ -243,7 +255,7 @@ class AuthApiTest extends TestCase
         $this->assertValidationErrors($response, ['email']);
     }
 
-    /** @test */
+    #[Test]
     public function mfa_verification_validates_required_fields()
     {
         $response = $this->postJson('/api/auth/mfa/verify', []);
@@ -252,27 +264,12 @@ class AuthApiTest extends TestCase
         $this->assertValidationErrors($response, ['temp_token']);
     }
 
-    /** @test */
-    public function mfa_verification_requires_either_code_or_backup_code()
-    {
-        $user = User::factory()->create(['is_mfa_enabled' => true]); // Ensure MFA is enabled for this test
-        $tempToken = encrypt([
-            'user_id' => $user->id,
-            'expires_at' => now()->addMinutes(5),
-            'purpose' => 'mfa_verification'
-        ]);
-
-        $response = $this->postJson('/api/auth/mfa/verify', [
-            'temp_token' => $tempToken
-        ]);
-
-        // Expect validation error for missing otp or backup_code
-        $this->assertValidationErrors($response, ['otp']);
-    }
-
-    /** @test */
+    #[Test]
     public function login_endpoint_has_rate_limiting()
     {
+        // Enable rate limiting for this specific test
+        config(['rate_limiting.enabled_in_tests' => true]);
+        
         // This test might fail if the rate limit is not strictly enforced in testing or if default throttle is too high
         $credentials = [
             'email' => 'test@example.com',
@@ -289,31 +286,60 @@ class AuthApiTest extends TestCase
 
         // Should be rate limited
         $response->assertStatus(429);
+        
+        // Disable rate limiting after test
+        config(['rate_limiting.enabled_in_tests' => false]);
     }
 
-    /** @test */
+    #[Test]
     public function mfa_endpoint_has_rate_limiting()
     {
+        // Enable rate limiting for this specific test
+        config(['rate_limiting.enabled_in_tests' => true]);
+        
+        // Set a low rate limit for this test only
+        AdvancedRateLimitMiddleware::$testOverrideLimits = [
+            'ip' => ['limit' => 3, 'window' => 60],
+            'user' => ['limit' => 3, 'window' => 60],
+        ];
+        
         $user = User::factory()->create(['is_mfa_enabled' => true]);
+        
+        // Generate an OTP code first to ensure MFA is properly set up
+        $validOtp = $user->generateEmailOtpCode();
+        
         $tempToken = encrypt([
             'user_id' => $user->id,
             'expires_at' => now()->addMinutes(5),
             'purpose' => 'mfa_verification'
         ]);
 
-        // Make multiple failed MFA attempts
+        // First make a valid attempt to ensure the endpoint works
+        $response = $this->postJson('/api/auth/mfa/verify', [
+            'temp_token' => $tempToken,
+            'otp' => $validOtp
+        ]);
+        
+        // Debug: Let's see what the response is
+        $this->assertNotEquals(401, $response->getStatusCode(), 'Valid OTP should not return 401. Response: ' . $response->getContent());
+
+        // Now make multiple failed MFA attempts with invalid codes
         for ($i = 0; $i < 6; $i++) {
             $response = $this->postJson('/api/auth/mfa/verify', [
                 'temp_token' => $tempToken,
-                'otp' => '000000' // Valid format but wrong code
+                'otp' => '000000' // Invalid code
             ]);
         }
 
         // Should be rate limited
         $response->assertStatus(429);
+        
+        // Reset override and disable rate limiting after test
+        AdvancedRateLimitMiddleware::$testOverrideLimits = null;
+        config(['rate_limiting.enabled_in_tests' => false]);
     }
 
-    /** @test */
+    #[Test]
     public function login_logs_security_events()
     {
         $user = User::factory()->create([
@@ -340,7 +366,7 @@ class AuthApiTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function failed_login_logs_security_events()
     {
         User::factory()->create([
@@ -361,7 +387,7 @@ class AuthApiTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function logout_logs_security_events()
     {
         $user = $this->actingAsUser();
@@ -378,7 +404,7 @@ class AuthApiTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function api_endpoints_require_https_in_production()
     {
         // Force HTTPS enforcement even in testing environment
@@ -394,7 +420,7 @@ class AuthApiTest extends TestCase
         $response->assertRedirect();
     }
 
-    /** @test */
+    #[Test]
     public function api_responses_include_security_headers()
     {
         $user = User::factory()->create([

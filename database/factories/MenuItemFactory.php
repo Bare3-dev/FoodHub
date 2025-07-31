@@ -24,13 +24,13 @@ class MenuItemFactory extends Factory
             'Greek Salad', 'Clam Chowder', 'Beef Stroganoff', 'Chicken Quesadilla'
         ];
 
+        $name = $this->faker->randomElement($foodItems);
+
         return [
             'restaurant_id' => \App\Models\Restaurant::factory(),
             'menu_category_id' => MenuCategory::factory(),
-            'name' => $this->faker->randomElement($foodItems),
-            'slug' => function (array $attributes) {
-                return \Illuminate\Support\Str::slug($attributes['name'] ?? $this->faker->randomElement($foodItems));
-            },
+            'name' => $name,
+            'slug' => \Illuminate\Support\Str::slug($name) . '-' . $this->faker->unique()->numberBetween(1, 9999),
             'description' => $this->faker->paragraph(2),
             'price' => $this->faker->randomFloat(2, 8.99, 28.99),
             'preparation_time' => $this->faker->numberBetween(10, 45),

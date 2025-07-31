@@ -13,6 +13,8 @@ return [
 
     'enabled' => env('RATE_LIMITING_ENABLED', true),
 
+    'enabled_in_tests' => env('RATE_LIMITING_ENABLED_IN_TESTS', false),
+
     'cache_prefix' => 'rate_limit',
 
     'progressive_penalties' => [

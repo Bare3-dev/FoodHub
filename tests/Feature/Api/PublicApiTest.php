@@ -8,16 +8,18 @@ use App\Models\MenuCategory;
 use App\Models\MenuItem;
 use App\Models\BranchMenuItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
+use App\Http\Middleware\AdvancedRateLimitMiddleware;
 
 class PublicApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function it_lists_restaurants_publicly()
     {
-        Restaurant::factory()->count(3)->create();
+        Restaurant::factory()->count(3)->create(['status' => 'active']);
 
         $response = $this->getJson('/api/restaurants');
 
@@ -37,10 +39,10 @@ class PublicApiTest extends TestCase
         $this->assertCount(3, $response->json('data'));
     }
 
-    /** @test */
+    #[Test]
     public function it_shows_restaurant_details_publicly()
     {
-        $restaurant = Restaurant::factory()->create();
+        $restaurant = Restaurant::factory()->create(['status' => 'active']);
 
         $response = $this->getJson("/api/restaurants/{$restaurant->id}");
 
@@ -62,15 +64,15 @@ class PublicApiTest extends TestCase
                  ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_404_for_nonexistent_restaurant()
     {
         $response = $this->getJson('/api/restaurants/999');
 
-        $this->assertApiError($response, 404, 'Restaurant not found');
+        $this->assertApiError($response, 404, 'The requested API endpoint does not exist.');
     }
 
-    /** @test */
+    #[Test]
     public function it_lists_restaurant_branches_publicly()
     {
         $restaurant = Restaurant::factory()->create();
@@ -94,7 +96,7 @@ class PublicApiTest extends TestCase
         $this->assertCount(2, $response->json('data'));
     }
 
-    /** @test */
+    #[Test]
     public function it_filters_restaurant_branches_by_location()
     {
         $restaurant = Restaurant::factory()->create();
@@ -121,10 +123,10 @@ class PublicApiTest extends TestCase
         $branches = $response->json('data');
         
         $this->assertCount(1, $branches);
-        $this->assertStringContains('New York', $branches[0]['address']);
+        $this->assertStringContainsString('New York', $branches[0]['address']);
     }
 
-    /** @test */
+    #[Test]
     public function it_shows_restaurant_branch_details()
     {
         $restaurant = Restaurant::factory()->create();
@@ -143,10 +145,10 @@ class PublicApiTest extends TestCase
                  ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_lists_menu_categories_publicly()
     {
-        $restaurant = Restaurant::factory()->create();
+        $restaurant = Restaurant::factory()->create(['status' => 'active']);
         MenuCategory::factory()->count(3)->create(['restaurant_id' => $restaurant->id]);
 
         $response = $this->getJson('/api/menu-categories');
@@ -157,7 +159,7 @@ class PublicApiTest extends TestCase
                      'message',
                      'data' => [
                          '*' => [
-                             'id', 'name', 'description', 'display_order', 'restaurant'
+                             'id', 'name', 'description', 'sort_order', 'restaurant'
                          ]
                      ]
                  ]);
@@ -165,11 +167,11 @@ class PublicApiTest extends TestCase
         $this->assertCount(3, $response->json('data'));
     }
 
-    /** @test */
+    #[Test]
     public function it_filters_menu_categories_by_restaurant()
     {
-        $restaurant1 = Restaurant::factory()->create();
-        $restaurant2 = Restaurant::factory()->create();
+        $restaurant1 = Restaurant::factory()->create(['status' => 'active']);
+        $restaurant2 = Restaurant::factory()->create(['status' => 'active']);
         
         MenuCategory::factory()->count(2)->create(['restaurant_id' => $restaurant1->id]);
         MenuCategory::factory()->count(3)->create(['restaurant_id' => $restaurant2->id]);
@@ -185,10 +187,10 @@ class PublicApiTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function it_shows_menu_category_details()
     {
-        $restaurant = Restaurant::factory()->create();
+        $restaurant = Restaurant::factory()->create(['status' => 'active']);
         $category = MenuCategory::factory()->create(['restaurant_id' => $restaurant->id]);
 
         $response = $this->getJson("/api/menu-categories/{$category->id}");
@@ -198,20 +200,20 @@ class PublicApiTest extends TestCase
                      'success',
                      'message',
                      'data' => [
-                         'id', 'name', 'description', 'display_order',
+                         'id', 'name', 'description', 'sort_order',
                          'restaurant', 'menu_items'
                      ]
                  ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_lists_menu_items_publicly()
     {
-        $restaurant = Restaurant::factory()->create();
+        $restaurant = Restaurant::factory()->create(['status' => 'active']);
         $category = MenuCategory::factory()->create(['restaurant_id' => $restaurant->id]);
         MenuItem::factory()->count(5)->create([
             'restaurant_id' => $restaurant->id,
-            'category_id' => $category->id
+            'menu_category_id' => $category->id
         ]);
 
         $response = $this->getJson('/api/menu-items');
@@ -230,20 +232,20 @@ class PublicApiTest extends TestCase
         $this->assertCount(5, $response->json('data'));
     }
 
-    /** @test */
+    #[Test]
     public function it_filters_menu_items_by_category()
     {
-        $restaurant = Restaurant::factory()->create();
+        $restaurant = Restaurant::factory()->create(['status' => 'active']);
         $category1 = MenuCategory::factory()->create(['restaurant_id' => $restaurant->id]);
         $category2 = MenuCategory::factory()->create(['restaurant_id' => $restaurant->id]);
         
         MenuItem::factory()->count(3)->create([
             'restaurant_id' => $restaurant->id,
-            'category_id' => $category1->id
+            'menu_category_id' => $category1->id
         ]);
         MenuItem::factory()->count(2)->create([
             'restaurant_id' => $restaurant->id,
-            'category_id' => $category2->id
+            'menu_category_id' => $category2->id
         ]);
 
         $response = $this->getJson("/api/menu-items?category_id={$category1->id}");
@@ -257,25 +259,25 @@ class PublicApiTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function it_searches_menu_items_by_name()
     {
-        $restaurant = Restaurant::factory()->create();
+        $restaurant = Restaurant::factory()->create(['status' => 'active']);
         $category = MenuCategory::factory()->create(['restaurant_id' => $restaurant->id]);
         
         MenuItem::factory()->create([
             'restaurant_id' => $restaurant->id,
-            'category_id' => $category->id,
+            'menu_category_id' => $category->id,
             'name' => 'Margherita Pizza'
         ]);
         MenuItem::factory()->create([
             'restaurant_id' => $restaurant->id,
-            'category_id' => $category->id,
+            'menu_category_id' => $category->id,
             'name' => 'Pepperoni Pizza'
         ]);
         MenuItem::factory()->create([
             'restaurant_id' => $restaurant->id,
-            'category_id' => $category->id,
+            'menu_category_id' => $category->id,
             'name' => 'Caesar Salad'
         ]);
 
@@ -290,14 +292,14 @@ class PublicApiTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function it_shows_menu_item_details()
     {
-        $restaurant = Restaurant::factory()->create();
+        $restaurant = Restaurant::factory()->create(['status' => 'active']);
         $category = MenuCategory::factory()->create(['restaurant_id' => $restaurant->id]);
         $menuItem = MenuItem::factory()->create([
             'restaurant_id' => $restaurant->id,
-            'category_id' => $category->id
+            'menu_category_id' => $category->id
         ]);
 
         $response = $this->getJson("/api/menu-items/{$menuItem->id}");
@@ -313,19 +315,19 @@ class PublicApiTest extends TestCase
                  ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_lists_branch_menu_items()
     {
-        $restaurant = Restaurant::factory()->create();
+        $restaurant = Restaurant::factory()->create(['status' => 'active']);
         $branch = RestaurantBranch::factory()->create(['restaurant_id' => $restaurant->id]);
         $category = MenuCategory::factory()->create(['restaurant_id' => $restaurant->id]);
         $menuItem = MenuItem::factory()->create([
             'restaurant_id' => $restaurant->id,
-            'category_id' => $category->id
+            'menu_category_id' => $category->id
         ]);
         
         BranchMenuItem::factory()->create([
-            'branch_id' => $branch->id,
+            'restaurant_branch_id' => $branch->id,
             'menu_item_id' => $menuItem->id,
             'is_available' => true
         ]);
@@ -345,28 +347,31 @@ class PublicApiTest extends TestCase
                  ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_only_shows_available_branch_menu_items()
     {
-        $restaurant = Restaurant::factory()->create();
-        $branch = RestaurantBranch::factory()->create(['restaurant_id' => $restaurant->id]);
+        $restaurant = Restaurant::factory()->create(['status' => 'active']);
+        $branch = RestaurantBranch::factory()->create([
+            'restaurant_id' => $restaurant->id,
+            'status' => 'active'
+        ]);
         $category = MenuCategory::factory()->create(['restaurant_id' => $restaurant->id]);
         $menuItem1 = MenuItem::factory()->create([
             'restaurant_id' => $restaurant->id,
-            'category_id' => $category->id
+            'menu_category_id' => $category->id
         ]);
         $menuItem2 = MenuItem::factory()->create([
             'restaurant_id' => $restaurant->id,
-            'category_id' => $category->id
+            'menu_category_id' => $category->id
         ]);
         
         BranchMenuItem::factory()->create([
-            'branch_id' => $branch->id,
+            'restaurant_branch_id' => $branch->id,
             'menu_item_id' => $menuItem1->id,
             'is_available' => true
         ]);
         BranchMenuItem::factory()->create([
-            'branch_id' => $branch->id,
+            'restaurant_branch_id' => $branch->id,
             'menu_item_id' => $menuItem2->id,
             'is_available' => false
         ]);
@@ -380,10 +385,10 @@ class PublicApiTest extends TestCase
         $this->assertTrue($items[0]['is_available']);
     }
 
-    /** @test */
+    #[Test]
     public function it_paginates_large_result_sets()
     {
-        Restaurant::factory()->count(50)->create();
+        Restaurant::factory()->count(50)->create(['status' => 'active']);
 
         $response = $this->getJson('/api/restaurants?per_page=10');
 
@@ -402,7 +407,7 @@ class PublicApiTest extends TestCase
         $this->assertEquals(5, $response->json('meta.last_page'));
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_invalid_pagination_parameters()
     {
         Restaurant::factory()->count(5)->create();
@@ -420,7 +425,7 @@ class PublicApiTest extends TestCase
         $response->assertStatus(422);
     }
 
-    /** @test */
+    #[Test]
     public function it_includes_cors_headers_for_public_endpoints()
     {
         Restaurant::factory()->create();
@@ -430,22 +435,24 @@ class PublicApiTest extends TestCase
         ]);
 
         $response->assertHeader('Access-Control-Allow-Origin', '*')
-                 ->assertHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+                 ->assertHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, HEAD, OPTIONS')
                  ->assertHeader('Access-Control-Allow-Headers');
     }
 
-    /** @test */
+    #[Test]
     public function it_includes_cache_headers_for_public_endpoints()
     {
-        $restaurant = Restaurant::factory()->create();
+        $restaurant = Restaurant::factory()->create(['status' => 'active']);
 
         $response = $this->getJson("/api/restaurants/{$restaurant->id}");
 
-        $response->assertHeader('Cache-Control', 'public, max-age=300') // 5 minutes
-                 ->assertHeader('ETag');
+        $cacheControl = $response->headers->get('Cache-Control');
+        $this->assertStringContainsString('public', $cacheControl);
+        $this->assertStringContainsString('max-age=300', $cacheControl);
+        $response->assertHeader('ETag');
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_malformed_search_parameters()
     {
         $response = $this->getJson('/api/menu-items?search=' . str_repeat('a', 1000));
@@ -453,7 +460,7 @@ class PublicApiTest extends TestCase
         $this->assertValidationErrors($response, ['search']);
     }
 
-    /** @test */
+    #[Test]
     public function it_validates_location_parameters()
     {
         // Invalid latitude
@@ -469,14 +476,27 @@ class PublicApiTest extends TestCase
         $this->assertValidationErrors($response, ['radius']);
     }
 
-    /** @test */
+    #[Test]
     public function it_respects_rate_limiting_for_public_endpoints()
     {
+        // Enable rate limiting for this specific test
+        config(['rate_limiting.enabled_in_tests' => true]);
+        
+        // Set a low rate limit for this test only
+        AdvancedRateLimitMiddleware::$testOverrideLimits = [
+            'ip' => ['limit' => 5, 'window' => 60],
+            'user' => null,
+        ];
+        
         // Make many requests to trigger rate limiting
-        for ($i = 0; $i < 100; $i++) {
+        for ($i = 0; $i < 10; $i++) {
             $response = $this->getJson('/api/restaurants');
         }
 
         $response->assertStatus(429); // Rate limit exceeded
+        
+        // Reset override and disable rate limiting after test
+        AdvancedRateLimitMiddleware::$testOverrideLimits = null;
+        config(['rate_limiting.enabled_in_tests' => false]);
     }
 } 

@@ -8,17 +8,22 @@ use App\Models\RestaurantBranch;
 use App\Http\Resources\Api\BranchMenuItemResource;
 use App\Http\Requests\StoreBranchMenuItemRequest;
 use App\Http\Requests\UpdateBranchMenuItemRequest;
+use App\Traits\ApiSuccessResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
+use Illuminate\Http\JsonResponse;
 
 class BranchMenuItemController extends Controller
 {
+    use ApiSuccessResponse;
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request, RestaurantBranch $restaurantBranch = null): Response
+    public function index(Request $request, RestaurantBranch $restaurantBranch = null): JsonResponse
     {
-        $this->authorize('viewAny', BranchMenuItem::class);
+        // For public access, only require authorization if user is authenticated
+        if (auth()->check()) {
+            $this->authorize('viewAny', BranchMenuItem::class);
+        }
 
         // Initialize a query builder for BranchMenuItem model.
         $query = BranchMenuItem::query();
@@ -28,6 +33,11 @@ class BranchMenuItemController extends Controller
             $query->where('restaurant_branch_id', $restaurantBranch->id);
         }
 
+        // Filter by availability if requested
+        if ($request->has('available_only') && $request->boolean('available_only')) {
+            $query->where('is_available', true);
+        }
+
         // Define the number of items per page, with a default of 15 and a maximum of 100.
         // This allows clients to control pagination size while preventing abuse.
         $perPage = $request->input('per_page', 15);
@@ -35,7 +45,11 @@ class BranchMenuItemController extends Controller
 
         // Retrieve branch menu items based on applied filters with pagination and transform them using BranchMenuItemResource collection.
         // The `paginate` method automatically handles the SQL LIMIT and OFFSET and provides pagination metadata.
-        return response(BranchMenuItemResource::collection($query->paginate($perPage)));
+        $branchMenuItems = $query->with(['menuItem', 'branch'])->paginate($perPage);
+        return $this->successResponseWithCollection(
+            BranchMenuItemResource::collection($branchMenuItems),
+            'Branch menu items retrieved successfully'
+        );
     }
 
     /**
@@ -67,17 +81,26 @@ class BranchMenuItemController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(RestaurantBranch $restaurantBranch = null, BranchMenuItem $branchMenuItem): Response
+    public function show(RestaurantBranch $restaurantBranch = null, BranchMenuItem $branchMenuItem): JsonResponse
     {
-        $this->authorize('view', $branchMenuItem);
+        // For public access, only require authorization if user is authenticated
+        if (auth()->check()) {
+            $this->authorize('view', $branchMenuItem);
+        }
 
         // If a restaurant branch is provided (nested resource), ensure the branch menu item belongs to it.
         if ($restaurantBranch && $branchMenuItem->restaurant_branch_id !== $restaurantBranch->id) {
             abort(404); // Not Found if the branch menu item does not belong to the specified restaurant branch.
         }
+        // Load the menu item and branch relationships
+        $branchMenuItem->load(['menuItem', 'branch']);
+
         // Return the specified branch menu item transformed by BranchMenuItemResource.
         // Laravel's route model binding automatically retrieves the branch menu item.
-        return response(new BranchMenuItemResource($branchMenuItem));
+        return $this->successResponseWithResource(
+            new BranchMenuItemResource($branchMenuItem),
+            'Branch menu item retrieved successfully'
+        );
     }
 
     /**

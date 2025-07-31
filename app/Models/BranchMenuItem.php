@@ -51,6 +51,15 @@ final class BranchMenuItem extends Model
     }
 
     /**
+     * Get the restaurant branch that owns the branch menu item.
+     * Alias for branch() for backward compatibility.
+     */
+    public function restaurantBranch(): BelongsTo
+    {
+        return $this->belongsTo(RestaurantBranch::class, 'restaurant_branch_id');
+    }
+
+    /**
      * Get the menu item that owns the branch menu item.
      */
     public function menuItem(): BelongsTo

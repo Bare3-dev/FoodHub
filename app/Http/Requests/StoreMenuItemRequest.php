@@ -11,8 +11,7 @@ class StoreMenuItemRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // For now, allow all requests. Authorization logic will be fully implemented in Sprint 5.
-        return true;
+        return auth()->user()->can('create', \App\Models\MenuItem::class);
     }
 
     /**

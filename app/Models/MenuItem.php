@@ -89,6 +89,14 @@ final class MenuItem extends Model
     }
 
     /**
+     * Get the order items for this menu item.
+     */
+    public function orderItems(): HasMany
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+
+    /**
      * Scope a query to only include available menu items.
      */
     public function scopeAvailable($query)

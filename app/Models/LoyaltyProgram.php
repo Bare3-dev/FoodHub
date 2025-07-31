@@ -29,6 +29,13 @@ final class LoyaltyProgram extends Model
         'dollar_per_point',
         'minimum_spend_for_points',
         'bonus_multipliers',
+        // Add missing fields
+        'currency_name',
+        'points_per_currency',
+        'minimum_points_redemption',
+        'redemption_rate',
+        'terms_and_conditions',
+        'rewards_info',
     ];
 
     /**
@@ -44,6 +51,9 @@ final class LoyaltyProgram extends Model
             'points_per_dollar' => 'decimal:2',
             'dollar_per_point' => 'decimal:2',
             'bonus_multipliers' => 'array',
+            'rewards_info' => 'array',
+            'points_per_currency' => 'decimal:2',
+            'redemption_rate' => 'decimal:4',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];

@@ -43,22 +43,50 @@ class DriverFactory extends Factory
             'completed_deliveries' => $this->faker->numberBetween(0, 400),
             'cancelled_deliveries' => $this->faker->numberBetween(0, 50),
             'total_earnings' => $this->faker->randomFloat(2, 0, 5000),
-            'documents' => json_encode([
+            'documents' => [
                 'id_document' => 'id_' . $this->faker->uuid() . '.jpg',
                 'license_document' => 'license_' . $this->faker->uuid() . '.jpg',
                 'vehicle_registration' => 'reg_' . $this->faker->uuid() . '.jpg'
-            ]),
-            'banking_info' => json_encode([
-                'account_holder' => $this->faker->name(),
-                'account_number' => $this->faker->bankAccountNumber(),
-                'routing_number' => $this->faker->numerify('#########'),
-                'bank_name' => $this->faker->randomElement(['Chase', 'Bank of America', 'Wells Fargo', 'Citibank'])
-            ]),
+            ],
             'email_verified_at' => $this->faker->boolean(80) ? now() : null,
             'phone_verified_at' => $this->faker->boolean(85) ? now() : null,
             'verified_at' => $this->faker->boolean(70) ? $this->faker->dateTimeBetween('-6 months', 'now') : null,
             'last_active_at' => $this->faker->dateTimeBetween('-1 week', 'now'),
             'created_at' => $this->faker->dateTimeBetween('-1 year', 'now'),
         ];
+    }
+
+    /**
+     * Indicate that the driver is available.
+     */
+    public function available(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'is_available' => true,
+            'is_online' => true,
+            'status' => 'active',
+        ]);
+    }
+
+    /**
+     * Indicate that the driver is unavailable.
+     */
+    public function unavailable(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'is_available' => false,
+            'is_online' => false,
+        ]);
+    }
+
+    /**
+     * Create a driver with specific coordinates.
+     */
+    public function withCoordinates(float $latitude, float $longitude): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'current_latitude' => $latitude,
+            'current_longitude' => $longitude,
+        ]);
     }
 }

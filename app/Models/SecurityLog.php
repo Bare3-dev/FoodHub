@@ -16,6 +16,8 @@ class SecurityLog extends Model
         'ip_address',
         'user_agent',
         'session_id',
+        'target_type',
+        'target_id',
         'metadata',
     ];
 
@@ -40,7 +42,9 @@ class SecurityLog extends Model
         ?string $ipAddress = null,
         ?string $userAgent = null,
         ?string $sessionId = null,
-        array $metadata = []
+        array $metadata = [],
+        ?string $targetType = null,
+        ?int $targetId = null
     ): self {
         return self::create([
             'user_id' => $userId,
@@ -48,6 +52,8 @@ class SecurityLog extends Model
             'ip_address' => $ipAddress ?? request()->ip(),
             'user_agent' => $userAgent ?? request()->userAgent(),
             'session_id' => $sessionId ?? session()->getId(),
+            'target_type' => $targetType,
+            'target_id' => $targetId,
             'metadata' => $metadata,
         ]);
     }

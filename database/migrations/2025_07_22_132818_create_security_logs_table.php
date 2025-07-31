@@ -18,6 +18,8 @@ return new class extends Migration
             $table->string('ip_address');
             $table->string('user_agent')->nullable();
             $table->string('session_id')->nullable();
+            $table->string('target_type')->nullable(); // Add target_type column
+            $table->unsignedBigInteger('target_id')->nullable(); // Add target_id column
             $table->json('metadata')->nullable();
             $table->timestamps();
 
@@ -25,6 +27,7 @@ return new class extends Migration
             $table->index(['event_type', 'created_at']);
             $table->index(['user_id', 'created_at']);
             $table->index(['ip_address', 'created_at']);
+            $table->index(['target_type', 'target_id']); // Add index for target columns
         });
     }
 

@@ -26,7 +26,7 @@ class StoreDriverRequest extends FormRequest
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:drivers',
-            'phone' => 'required|string|max:20|unique:drivers',
+            'phone' => 'required|string|min:10|max:20|unique:drivers',
             'password' => 'required|string|min:8',
             'date_of_birth' => 'required|date',
             'national_id' => 'required|string|max:255|unique:drivers',

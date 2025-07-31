@@ -45,6 +45,8 @@ class UpdateOrderRequest extends FormRequest
             'delivery_instructions' => 'nullable|string',
             'scheduled_at' => 'nullable|date',
             'delivered_at' => 'nullable|date',
+            'cancellation_reason' => 'nullable|string',
+            'cancelled_at' => 'nullable|date',
         ];
     }
 }

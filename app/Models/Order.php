@@ -85,6 +85,40 @@ final class Order extends Model
     }
 
     /**
+     * Boot the model and add event listeners.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Create status history record when order is created
+        static::created(function ($order) {
+            $order->createStatusHistoryRecord($order->status, auth()->id());
+        });
+
+        // Create status history record when order status is updated
+        static::updated(function ($order) {
+            if ($order->wasChanged('status')) {
+                $order->createStatusHistoryRecord($order->status, auth()->id());
+            }
+        });
+    }
+
+    /**
+     * Create a status history record for the order.
+     */
+    public function createStatusHistoryRecord(string $status, ?int $changedBy = null): void
+    {
+        \DB::table('order_status_history')->insert([
+            'order_id' => $this->id,
+            'status' => $status,
+            'changed_by' => $changedBy,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    /**
      * Get the customer that owns the order.
      */
     public function customer(): BelongsTo
@@ -173,7 +207,7 @@ final class Order extends Model
     }
 
     /**
-     * Scope a query to only include orders of a specific type.
+     * Scope a query to only include orders with a specific type.
      */
     public function scopeType($query, string $type)
     {
@@ -194,5 +228,13 @@ final class Order extends Model
     public function scopeDelivery($query)
     {
         return $query->where('type', 'delivery');
+    }
+
+    /**
+     * Scope a query to only include pickup orders.
+     */
+    public function scopePickup($query)
+    {
+        return $query->where('type', 'pickup');
     }
 }

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\BranchMenuItemController;
 use App\Http\Controllers\Api\CustomerAddressController;
 use App\Http\Controllers\Api\CustomerController;
+use App\Http\Controllers\Api\CustomerLoyaltyPointsController;
 use App\Http\Controllers\Api\DriverController;
 use App\Http\Controllers\Api\DriverWorkingZoneController;
 use App\Http\Controllers\Api\LoyaltyProgramController;
@@ -35,12 +36,14 @@ use Illuminate\Support\Facades\Route;
 Route::group(['middleware' => ['https.security', 'input.sanitization', 'api.cors:private']], function () {
     Route::post('/auth/login', [App\Http\Controllers\Api\Auth\AuthController::class, 'login'])
         ->middleware('advanced.rate.limit:login');
-    Route::post('/auth/mfa/verify', [App\Http\Controllers\Api\Auth\AuthController::class, 'verifyMfa'])
-        ->middleware('advanced.rate.limit:mfa_verify');
 });
 
+// MFA verification - accessible without authentication (part of login flow)
+Route::post('/auth/mfa/verify', [App\Http\Controllers\Api\Auth\AuthController::class, 'verifyMfa'])
+    ->middleware(['https.security', 'input.sanitization', 'api.cors:private', 'advanced.rate.limit:mfa_verify']);
+
 // Public endpoints - No authentication required, permissive CORS, basic security
-Route::group(['middleware' => ['https.security', 'input.sanitization', 'api.cors:public', 'advanced.rate.limit:general']], function () {
+Route::group(['middleware' => ['https.security', 'input.sanitization', 'api.cors:public', 'advanced.rate.limit:general', 'cache.headers']], function () {
     // Public restaurant and menu browsing
     Route::get('/restaurants', [RestaurantController::class, 'index']);
     Route::get('/restaurants/{restaurant}', [RestaurantController::class, 'show']);
@@ -65,7 +68,7 @@ Route::group(['middleware' => ['https.security', 'input.sanitization', 'api.cors
 });
 
 // Private endpoints - Authentication required, standard CORS, full security stack
-Route::group(['middleware' => ['https.security', 'input.sanitization', 'auth:sanctum', 'api.cors:private', 'advanced.rate.limit:general']], function () {
+Route::group(['middleware' => ['https.security', 'input.sanitization', 'auth:sanctum', \App\Http\Middleware\UserStatusMiddleware::class, 'api.cors:private', 'advanced.rate.limit:general']], function () {
     // User info
     Route::get('/user', function (Request $request) {
         return $request->user();
@@ -103,6 +106,8 @@ Route::group(['middleware' => ['https.security', 'input.sanitization', 'auth:san
             Route::get('/customers', [CustomerController::class, 'index']);
             Route::get('/customers/{customer}', [CustomerController::class, 'show']);
             Route::post('/customers', [CustomerController::class, 'store']); // Cashier can create customers
+            // Add nested resource for customer addresses
+            Route::apiResource('customers.addresses', CustomerAddressController::class);
         });
         
         // Loyalty program operations - both CASHIER and CUSTOMER_SERVICE can access
@@ -110,12 +115,19 @@ Route::group(['middleware' => ['https.security', 'input.sanitization', 'auth:san
         Route::group(['middleware' => 'role.permission:CASHIER|CUSTOMER_SERVICE'], function () {
             Route::get('/loyalty-programs', [LoyaltyProgramController::class, 'index']);
             Route::get('/loyalty-programs/{loyaltyProgram}', [LoyaltyProgramController::class, 'show']);
+            
+            // Customer loyalty points management
+            Route::get('/customer-loyalty-points/summary', [CustomerLoyaltyPointsController::class, 'summary']);
+            Route::post('/customer-loyalty-points/earn-points', [CustomerLoyaltyPointsController::class, 'earnPoints']);
+            Route::post('/customer-loyalty-points/redeem-points', [CustomerLoyaltyPointsController::class, 'redeemPoints']);
+            Route::post('/customer-loyalty-points/process-expiration', [CustomerLoyaltyPointsController::class, 'processExpiration']);
+            Route::apiResource('customer-loyalty-points', CustomerLoyaltyPointsController::class);
         });
     });
 });
 
 // Admin endpoints - Strict authentication + admin roles, admin CORS, maximum security
-Route::group(['middleware' => ['auth:sanctum', 'https.security']], function () {
+Route::group(['middleware' => ['auth:sanctum', \App\Http\Middleware\UserStatusMiddleware::class, 'https.security']], function () {
     // Super Admin only endpoints
     Route::group(['middleware' => 'role.permission:SUPER_ADMIN'], function () {
         // Rate limit management
@@ -125,7 +137,12 @@ Route::group(['middleware' => ['auth:sanctum', 'https.security']], function () {
         Route::post('/restaurants', [RestaurantController::class, 'store']);
         Route::delete('/restaurants/{restaurant}', [RestaurantController::class, 'destroy']);
         
-        // Staff management
+        // Order management (delete only)
+        Route::delete('/orders/{order}', [OrderController::class, 'destroy']);
+    });
+    
+    // Staff management - accessible by Super Admin, Restaurant Owners, and Branch Managers
+    Route::group(['middleware' => 'role.permission:SUPER_ADMIN|RESTAURANT_OWNER|BRANCH_MANAGER'], function () {
         Route::apiResource('staff', StaffController::class);
     });
     
@@ -133,7 +150,6 @@ Route::group(['middleware' => ['auth:sanctum', 'https.security']], function () {
     Route::group(['middleware' => 'role.permission:SUPER_ADMIN|RESTAURANT_OWNER'], function () {
         // Restaurant management (view/update own restaurants)
         // Note: GET /restaurants is handled by the public route with proper access control in controller
-        Route::get('/restaurants/{restaurant}', [RestaurantController::class, 'show']);
         Route::put('/restaurants/{restaurant}', [RestaurantController::class, 'update']);
         Route::patch('/restaurants/{restaurant}', [RestaurantController::class, 'update']);
         
@@ -168,7 +184,10 @@ Route::group(['middleware' => ['auth:sanctum', 'https.security']], function () {
         Route::delete('/menu-items/{menuItem}', [MenuItemController::class, 'destroy']);
         
         // Branch menu item management
-        Route::apiResource('restaurant-branches.branch-menu-items', BranchMenuItemController::class)->except(['index', 'show']);
+        Route::post('/restaurant-branches/{restaurantBranch}/branch-menu-items', [BranchMenuItemController::class, 'store']);
+        Route::put('/restaurant-branches/{restaurantBranch}/branch-menu-items/{branchMenuItem}', [BranchMenuItemController::class, 'update']);
+        Route::patch('/restaurant-branches/{restaurantBranch}/branch-menu-items/{branchMenuItem}', [BranchMenuItemController::class, 'update']);
+        Route::delete('/restaurant-branches/{restaurantBranch}/branch-menu-items/{branchMenuItem}', [BranchMenuItemController::class, 'destroy']);
         
         // Nested restaurant menu management
         Route::apiResource('restaurants.menu-categories', MenuCategoryController::class)->except(['index', 'show']);
@@ -180,6 +199,11 @@ Route::group(['middleware' => ['auth:sanctum', 'https.security']], function () {
     // Delivery Manager specific endpoints
     Route::group(['middleware' => 'role.permission:SUPER_ADMIN|DELIVERY_MANAGER'], function () {
         Route::apiResource('driver-working-zones', DriverWorkingZoneController::class);
+        
+        // Additional driver working zone functionality
+        Route::post('/driver-working-zones/optimize-route', [DriverWorkingZoneController::class, 'optimizeRoute']);
+        Route::post('/driver-working-zones/assign-driver', [DriverWorkingZoneController::class, 'assignDriver']);
+        Route::post('/driver-working-zones/calculate-delivery-time', [DriverWorkingZoneController::class, 'calculateDeliveryTime']);
     });
     
     // Customer Service + Super Admin endpoints
@@ -196,3 +220,12 @@ Route::group(['middleware' => ['auth:sanctum', 'https.security']], function () {
         Route::delete('/loyalty-programs/{loyaltyProgram}', [LoyaltyProgramController::class, 'destroy']);
     });
 });
+
+// Minimal test route for cache header debugging
+Route::get('/cache-test', function() {
+    $response = response()->json(['test' => true, 'time' => now()]);
+    $response->headers->set('Cache-Control', 'public, max-age=3600');
+    return $response;
+});
+
+

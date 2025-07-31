@@ -47,6 +47,8 @@ final class Driver extends Model
         'completed_deliveries',
         'cancelled_deliveries',
         'total_earnings',
+        'email_verified_at',
+        'phone_verified_at',
         'verified_at',
         'last_active_at',
         'documents',
@@ -137,5 +139,25 @@ final class Driver extends Model
     public function scopeAvailable($query)
     {
         return $query->where('is_available', true);
+    }
+
+    /**
+     * Get the coordinates as an array.
+     */
+    public function getCoordinatesAttribute(): array
+    {
+        return [
+            'latitude' => $this->current_latitude,
+            'longitude' => $this->current_longitude
+        ];
+    }
+
+    /**
+     * Set the coordinates from an array.
+     */
+    public function setCoordinatesAttribute(array $coordinates): void
+    {
+        $this->current_latitude = $coordinates['latitude'] ?? null;
+        $this->current_longitude = $coordinates['longitude'] ?? null;
     }
 }

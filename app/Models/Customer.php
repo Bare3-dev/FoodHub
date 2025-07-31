@@ -117,4 +117,36 @@ final class Customer extends Authenticatable
     {
         return $query->whereNotNull('phone_verified_at');
     }
+
+    /**
+     * Check if the customer has a specific role.
+     * Customers always have the 'CUSTOMER' role.
+     */
+    public function hasRole(string $role): bool
+    {
+        return $role === 'CUSTOMER';
+    }
+
+    /**
+     * Check if the customer has a specific permission.
+     * Customers have basic permissions for their own orders.
+     */
+    public function hasPermission(string $permission): bool
+    {
+        $customerPermissions = [
+            'order:cancel-own',
+            'order:view-own',
+            'order:create'
+        ];
+        
+        return in_array($permission, $customerPermissions, true);
+    }
+
+    /**
+     * Check if the customer is a super admin (always false for customers).
+     */
+    public function isSuperAdmin(): bool
+    {
+        return false;
+    }
 }

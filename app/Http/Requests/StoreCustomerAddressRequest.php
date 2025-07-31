@@ -23,18 +23,17 @@ class StoreCustomerAddressRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'customer_id' => 'required|exists:customers,id',
-            'address_line_1' => 'required|string|max:255',
-            'address_line_2' => 'nullable|string|max:255',
+            'street_address' => 'required|string|max:255',
+            'apartment_number' => 'nullable|string|max:255',
             'city' => 'required|string|max:255',
             'state' => 'required|string|max:255',
             'postal_code' => 'required|string|max:20',
             'country' => 'required|string|max:255',
-            'latitude' => 'required|numeric|between:-90,90',
-            'longitude' => 'required|numeric|between:-180,180',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
             'is_default' => 'boolean',
-            'address_type' => 'nullable|string|max:50',
-            'notes' => 'nullable|string',
+            'label' => 'nullable|string|max:50',
+            'delivery_notes' => 'nullable|string',
         ];
     }
 }

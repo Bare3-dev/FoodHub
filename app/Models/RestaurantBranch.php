@@ -14,6 +14,8 @@ final class RestaurantBranch extends Model
 {
     use HasFactory;
 
+
+
     /**
      * The attributes that are mass assignable.
      */
@@ -116,13 +118,11 @@ final class RestaurantBranch extends Model
      */
     public function scopeWithinRadius($query, float $latitude, float $longitude, float $radiusKm)
     {
-        // This assumes you have a PostGIS enabled column or are using a geometry type for latitude/longitude
-        // For our current setup with decimal lat/long, this is a simplified distance check.
-        // A proper PostGIS query would use ST_DWithin or similar functions.
-        $haversine = "(6371 * acos(cos(radians(?)) * cos(radians(latitude)) * cos(radians(longitude) - radians(?)) + sin(radians(?)) * sin(radians(latitude))))";
+        // Use a simpler approach that doesn't have parameter binding issues
+        $haversine = "(6371 * acos(cos(radians({$latitude})) * cos(radians(latitude)) * cos(radians(longitude) - radians({$longitude})) + sin(radians({$latitude})) * sin(radians(latitude))))";
 
         return $query->select(DB::raw("*, {$haversine} AS distance"))
-            ->whereRaw("{$haversine} < ?", [$latitude, $longitude, $latitude, $radiusKm])
+            ->whereRaw("{$haversine} < ?", [$radiusKm])
             ->orderBy('distance');
     }
 }

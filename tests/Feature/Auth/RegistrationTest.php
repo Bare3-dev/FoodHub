@@ -78,9 +78,7 @@ class RegistrationTest extends TestCase
             'phone' => '1234567890',
             'email' => 'test@restaurant.com',
             'business_hours' => ['monday' => ['open' => '09:00', 'close' => '22:00']],
-            'delivery_fee' => 5.00,
-            'minimum_order' => 10.00,
-            'estimated_delivery_time' => 30,
+            'status' => 'active',
         ]);
 
         $restaurantOwner = User::create([
@@ -116,9 +114,7 @@ class RegistrationTest extends TestCase
             'phone' => '1234567890',
             'email' => 'test@restaurant.com',
             'business_hours' => ['monday' => ['open' => '09:00', 'close' => '22:00']],
-            'delivery_fee' => 5.00,
-            'minimum_order' => 10.00,
-            'estimated_delivery_time' => 30,
+            'status' => 'active',
         ]);
 
         $restaurantOwner = User::create([
@@ -131,6 +127,7 @@ class RegistrationTest extends TestCase
         ]);
 
         $response = $this->actingAs($restaurantOwner)
+            ->withHeaders(['Accept' => 'application/json'])
             ->post('/register/staff', [
                 'name' => 'New Super Admin',
                 'email' => 'superadmin@example.com',
@@ -153,9 +150,7 @@ class RegistrationTest extends TestCase
             'phone' => '1234567890',
             'email' => 'test@restaurant.com',
             'business_hours' => ['monday' => ['open' => '09:00', 'close' => '22:00']],
-            'delivery_fee' => 5.00,
-            'minimum_order' => 10.00,
-            'estimated_delivery_time' => 30,
+            'status' => 'active',
         ]);
 
         $branch = RestaurantBranch::create([
@@ -165,11 +160,12 @@ class RegistrationTest extends TestCase
             'address' => 'Test Address',
             'city' => 'Riyadh',
             'state' => 'Riyadh Province',
+            'postal_code' => '12345',
             'phone' => '1234567890',
-            'email' => 'branch@example.com',
-            'business_hours' => ['monday' => ['open' => '09:00', 'close' => '22:00']],
+            'operating_hours' => ['monday' => ['open' => '09:00', 'close' => '22:00']],
+            'delivery_zones' => [],
             'delivery_fee' => 5.00,
-            'minimum_order' => 10.00,
+            'minimum_order_amount' => 10.00,
             'estimated_delivery_time' => 30,
         ]);
 
@@ -184,6 +180,7 @@ class RegistrationTest extends TestCase
         ]);
 
         $response = $this->actingAs($branchManager)
+            ->withHeaders(['Accept' => 'application/json'])
             ->post('/register/staff', [
                 'name' => 'New Cashier',
                 'email' => 'cashier@example.com',
@@ -207,9 +204,7 @@ class RegistrationTest extends TestCase
             'phone' => '1234567890',
             'email' => 'test@restaurant.com',
             'business_hours' => ['monday' => ['open' => '09:00', 'close' => '22:00']],
-            'delivery_fee' => 5.00,
-            'minimum_order' => 10.00,
-            'estimated_delivery_time' => 30,
+            'status' => 'active',
         ]);
 
         $branch = RestaurantBranch::create([
@@ -219,11 +214,12 @@ class RegistrationTest extends TestCase
             'address' => 'Test Address',
             'city' => 'Riyadh',
             'state' => 'Riyadh Province',
+            'postal_code' => '12345',
             'phone' => '1234567890',
-            'email' => 'branch@example.com',
-            'business_hours' => ['monday' => ['open' => '09:00', 'close' => '22:00']],
+            'operating_hours' => ['monday' => ['open' => '09:00', 'close' => '22:00']],
+            'delivery_zones' => [],
             'delivery_fee' => 5.00,
-            'minimum_order' => 10.00,
+            'minimum_order_amount' => 10.00,
             'estimated_delivery_time' => 30,
         ]);
 
@@ -245,7 +241,9 @@ class RegistrationTest extends TestCase
                 'role' => 'BRANCH_MANAGER',
             ]);
 
-        $response->assertStatus(422);
-        $response->assertJsonValidationErrors(['role']);
+        $response->assertStatus(403);
+        $response->assertJson([
+            'message' => 'You do not have permission to create users with this role.',
+        ]);
     }
 }

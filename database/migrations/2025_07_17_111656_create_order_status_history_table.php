@@ -13,7 +13,14 @@ return new class extends Migration
     {
         Schema::create('order_status_history', function (Blueprint $table) {
             $table->id();
+            $table->unsignedBigInteger('order_id');
+            $table->string('status');
+            $table->unsignedBigInteger('changed_by')->nullable();
+            $table->text('notes')->nullable();
             $table->timestamps();
+            
+            $table->foreign('order_id')->references('id')->on('orders')->onDelete('cascade');
+            $table->foreign('changed_by')->references('id')->on('users')->onDelete('set null');
         });
     }
 

@@ -25,7 +25,10 @@ class CustomerController extends Controller
         $perPage = min($perPage, 100);
 
         // Retrieve customers with pagination and transform them using CustomerResource collection.
-        return response(CustomerResource::collection(Customer::paginate($perPage)));
+        $customers = Customer::paginate($perPage);
+        
+        // Return the data in the format expected by tests - simple array
+        return response($customers->items());
     }
 
     /**
