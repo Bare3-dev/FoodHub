@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('role'); // Role name (e.g., 'SUPER_ADMIN', 'RESTAURANT_OWNER')
             $table->string('permission'); // Permission name (e.g., 'menu.manage', 'orders.view')
             $table->enum('scope', ['global', 'restaurant', 'branch'])->default('global');
-            $table->foreignId('scope_id')->nullable()->constrained('restaurants')->onDelete('cascade'); // restaurant_id or branch_id
+            $table->unsignedBigInteger('scope_id')->nullable(); // restaurant_id or branch_id (no foreign key constraint)
             $table->boolean('is_active')->default(true);
             $table->jsonb('conditions')->default('{}'); // Additional conditions for permission
             $table->text('description')->nullable();

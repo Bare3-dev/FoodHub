@@ -148,7 +148,7 @@ final class StaffShift extends Model
     {
         $start = Carbon::parse($this->start_time);
         $end = Carbon::parse($this->end_time);
-        return $start->diffInMinutes($end);
+        return (int) $start->diffInMinutes($end);
     }
 
     /**
@@ -189,5 +189,19 @@ final class StaffShift extends Model
     public function scopeForBranch($query, $branchId)
     {
         return $query->where('restaurant_branch_id', $branchId);
+    }
+
+    /**
+     * Scope to get currently effective shifts (active or scheduled for today).
+     */
+    public function scopeCurrentlyEffective($query)
+    {
+        return $query->where(function ($q) {
+            $q->where('status', 'active')
+              ->orWhere(function ($subQ) {
+                  $subQ->where('status', 'scheduled')
+                        ->where('shift_date', '>=', now()->startOfDay());
+              });
+        });
     }
 } 

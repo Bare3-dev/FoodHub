@@ -48,13 +48,28 @@ class OrderPolicy
             return false;
         }
 
-        return $user->isSuperAdmin() ||
-               $user->hasRole('RESTAURANT_OWNER') ||
-               $user->hasRole('BRANCH_MANAGER') ||
-               $user->hasRole('CASHIER') ||
-               $user->hasRole('KITCHEN_STAFF') ||
-               $user->hasRole('DELIVERY_MANAGER') ||
-               $user->hasRole('CUSTOMER_SERVICE');
+        // Super admin can view any order
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        // Restaurant owners can view orders in their restaurants
+        if ($user->hasRole('RESTAURANT_OWNER') && $user->restaurant_id === $order->restaurant_id) {
+            return true;
+        }
+
+        // Branch managers can view orders in their branches
+        if ($user->hasRole('BRANCH_MANAGER') && $user->restaurant_branch_id === $order->restaurant_branch_id) {
+            return true;
+        }
+
+        // Staff can view orders in their branches
+        if (in_array($user->role, ['CASHIER', 'KITCHEN_STAFF', 'DELIVERY_MANAGER', 'CUSTOMER_SERVICE']) 
+            && $user->restaurant_branch_id === $order->restaurant_branch_id) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -73,7 +88,8 @@ class OrderPolicy
         }
 
         return $user->isSuperAdmin() || 
-               $user->hasRole('CASHIER') ||
+               $user->hasRole('RESTAURANT_OWNER') ||
+               $user->hasRole('BRANCH_MANAGER') ||
                $user->hasRole('CUSTOMER_SERVICE');
     }
 
@@ -92,13 +108,28 @@ class OrderPolicy
             return false;
         }
 
-        return $user->isSuperAdmin() || 
-               $user->hasRole('RESTAURANT_OWNER') ||
-               $user->hasRole('BRANCH_MANAGER') ||
-               $user->hasRole('CASHIER') ||
-               $user->hasRole('KITCHEN_STAFF') ||
-               $user->hasRole('DELIVERY_MANAGER') ||
-               $user->hasRole('CUSTOMER_SERVICE');
+        // Super admin can update any order
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        // Restaurant owners can update orders in their restaurants
+        if ($user->hasRole('RESTAURANT_OWNER') && $user->restaurant_id === $order->restaurant_id) {
+            return true;
+        }
+
+        // Branch managers can update orders in their branches
+        if ($user->hasRole('BRANCH_MANAGER') && $user->restaurant_branch_id === $order->restaurant_branch_id) {
+            return true;
+        }
+
+        // Staff can update orders in their branches
+        if (in_array($user->role, ['CASHIER', 'KITCHEN_STAFF', 'DELIVERY_MANAGER', 'CUSTOMER_SERVICE']) 
+            && $user->restaurant_branch_id === $order->restaurant_branch_id) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -116,8 +147,27 @@ class OrderPolicy
             return false;
         }
 
-        return $user->isSuperAdmin() ||
-               $user->hasRole('CUSTOMER_SERVICE');
+        // Super admin can delete any order
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        // Restaurant owners can delete orders in their restaurants
+        if ($user->hasRole('RESTAURANT_OWNER') && $user->restaurant_id === $order->restaurant_id) {
+            return true;
+        }
+
+        // Branch managers can delete orders in their branches
+        if ($user->hasRole('BRANCH_MANAGER') && $user->restaurant_branch_id === $order->restaurant_branch_id) {
+            return true;
+        }
+
+        // Customer service can delete any order
+        if ($user->hasRole('CUSTOMER_SERVICE')) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -135,7 +185,27 @@ class OrderPolicy
             return false;
         }
 
-        return $user->isSuperAdmin();
+        // Super admin can restore any order
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        // Restaurant owners can restore orders in their restaurants
+        if ($user->hasRole('RESTAURANT_OWNER') && $user->restaurant_id === $order->restaurant_id) {
+            return true;
+        }
+
+        // Branch managers can restore orders in their branches
+        if ($user->hasRole('BRANCH_MANAGER') && $user->restaurant_branch_id === $order->restaurant_branch_id) {
+            return true;
+        }
+
+        // Customer service can restore any order
+        if ($user->hasRole('CUSTOMER_SERVICE')) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -153,6 +223,26 @@ class OrderPolicy
             return false;
         }
 
-        return $user->isSuperAdmin();
+        // Super admin can permanently delete any order
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        // Restaurant owners can permanently delete orders in their restaurants
+        if ($user->hasRole('RESTAURANT_OWNER') && $user->restaurant_id === $order->restaurant_id) {
+            return true;
+        }
+
+        // Branch managers can permanently delete orders in their branches
+        if ($user->hasRole('BRANCH_MANAGER') && $user->restaurant_branch_id === $order->restaurant_branch_id) {
+            return true;
+        }
+
+        // Customer service can permanently delete any order
+        if ($user->hasRole('CUSTOMER_SERVICE')) {
+            return true;
+        }
+
+        return false;
     }
 }

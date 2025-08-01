@@ -68,6 +68,10 @@ class LoyaltyProgramPolicyTest extends TestCase
         // Associate restaurant owner with this restaurant
         $this->restaurantOwner->update(['restaurant_id' => $this->restaurant->id]);
         
+        // Associate branch manager and cashier with the restaurant
+        $this->branchManager->update(['restaurant_id' => $this->restaurant->id]);
+        $this->cashier->update(['restaurant_id' => $this->restaurant->id]);
+        
         $this->branch = RestaurantBranch::factory()->create([
             'restaurant_id' => $this->restaurant->id
         ]);
@@ -211,7 +215,7 @@ class LoyaltyProgramPolicyTest extends TestCase
     public function unauthorized_users_cannot_access_loyalty_programs()
     {
         $unauthorizedUser = User::factory()->create([
-            'role' => 'CUSTOMER',
+            'role' => 'KITCHEN_STAFF',
             'status' => 'active'
         ]);
         

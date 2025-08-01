@@ -79,7 +79,27 @@ class Handler extends ExceptionHandler
     public function register(): void
     {
         $this->reportable(function (Throwable $e) {
-            // Custom reporting logic can be added here
+            //
+        });
+
+        // Handle invalid route model binding
+        $this->renderable(function (\Illuminate\Database\QueryException $e, $request) {
+            if (str_contains($e->getMessage(), 'invalid input syntax for type bigint')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The requested resource was not found.',
+                    'errors' => []
+                ], 404);
+            }
+        });
+
+        // Handle model not found exceptions
+        $this->renderable(function (\Illuminate\Database\Eloquent\ModelNotFoundException $e, $request) {
+            return response()->json([
+                'success' => false,
+                'message' => 'The requested resource was not found.',
+                'errors' => []
+            ], 404);
         });
     }
 

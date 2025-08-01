@@ -18,9 +18,13 @@ class UserResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'email' => $this->email,
-            'role' => $this->role, // Add the role attribute
-            // You might want to add other user attributes here, like 'status', 'email_verified_at', etc.
-            // For now, let's just add 'role' to fix the test.
+            'role' => $this->role,
+            'status' => $this->status,
+            'restaurant_id' => $this->restaurant_id,
+            'restaurant_branch_id' => $this->restaurant_branch_id,
+            'permissions' => $this->permissions,
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
         ];
     }
 }

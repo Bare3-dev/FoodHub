@@ -7,11 +7,15 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Carbon\Carbon;
 
 final class StaffTransferHistory extends Model
 {
     use HasFactory;
+
+    /**
+     * The table associated with the model.
+     */
+    protected $table = 'staff_transfer_history';
 
     /**
      * The attributes that are mass assignable.
@@ -23,16 +27,18 @@ final class StaffTransferHistory extends Model
         'from_branch_id',
         'to_branch_id',
         'transfer_type',
-        'status',
         'transfer_reason',
-        'additional_notes',
         'effective_date',
         'actual_transfer_date',
         'requested_by',
         'approved_by',
         'approved_at',
         'approval_notes',
-        'transfer_details',
+        'rejected_by',
+        'rejected_at',
+        'rejection_notes',
+        'completed_at',
+        'status',
     ];
 
     /**
@@ -42,9 +48,6 @@ final class StaffTransferHistory extends Model
     {
         return [
             'effective_date' => 'date',
-            'actual_transfer_date' => 'date',
-            'approved_at' => 'datetime',
-            'transfer_details' => 'array',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
@@ -99,56 +102,7 @@ final class StaffTransferHistory extends Model
     }
 
     /**
-     * Get the user who approved the transfer.
-     */
-    public function approvedBy(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'approved_by');
-    }
-
-    /**
-     * Get transfer type description.
-     */
-    public function getTransferTypeDescription(): string
-    {
-        $descriptions = [
-            'restaurant_to_restaurant' => 'Between different restaurants',
-            'branch_to_branch' => 'Between branches of same restaurant',
-            'restaurant_to_branch' => 'From restaurant level to specific branch',
-            'branch_to_restaurant' => 'From branch to restaurant level',
-            'temporary_assignment' => 'Temporary assignment',
-            'permanent_transfer' => 'Permanent transfer',
-        ];
-
-        return $descriptions[$this->transfer_type] ?? 'Unknown transfer type';
-    }
-
-    /**
-     * Get status description.
-     */
-    public function getStatusDescription(): string
-    {
-        $descriptions = [
-            'pending' => 'Pending approval',
-            'approved' => 'Approved',
-            'rejected' => 'Rejected',
-            'completed' => 'Completed',
-            'cancelled' => 'Cancelled',
-        ];
-
-        return $descriptions[$this->status] ?? 'Unknown status';
-    }
-
-    /**
-     * Check if transfer is pending.
-     */
-    public function isPending(): bool
-    {
-        return $this->status === 'pending';
-    }
-
-    /**
-     * Check if transfer is approved.
+     * Check if the transfer is approved.
      */
     public function isApproved(): bool
     {
@@ -156,7 +110,15 @@ final class StaffTransferHistory extends Model
     }
 
     /**
-     * Check if transfer is rejected.
+     * Check if the transfer is pending.
+     */
+    public function isPending(): bool
+    {
+        return $this->status === 'pending';
+    }
+
+    /**
+     * Check if the transfer is rejected.
      */
     public function isRejected(): bool
     {
@@ -164,7 +126,7 @@ final class StaffTransferHistory extends Model
     }
 
     /**
-     * Check if transfer is completed.
+     * Check if the transfer is completed.
      */
     public function isCompleted(): bool
     {
@@ -172,98 +134,51 @@ final class StaffTransferHistory extends Model
     }
 
     /**
-     * Check if transfer is cancelled.
+     * Approve the transfer.
      */
-    public function isCancelled(): bool
-    {
-        return $this->status === 'cancelled';
-    }
-
-    /**
-     * Check if transfer is effective (past effective date).
-     */
-    public function isEffective(): bool
-    {
-        return $this->effective_date->isPast();
-    }
-
-    /**
-     * Check if transfer is overdue (past effective date but not completed).
-     */
-    public function isOverdue(): bool
-    {
-        return $this->isEffective() && !$this->isCompleted();
-    }
-
-    /**
-     * Approve this transfer.
-     */
-    public function approve(int $approvedBy, string $notes = null): void
+    public function approve(int $approvedBy, string $notes = null): self
     {
         $this->update([
             'status' => 'approved',
             'approved_by' => $approvedBy,
-            'approved_at' => Carbon::now(),
             'approval_notes' => $notes,
+            'approved_at' => now(),
         ]);
+
+        return $this;
     }
 
     /**
-     * Reject this transfer.
+     * Reject the transfer.
      */
-    public function reject(int $approvedBy, string $notes): void
+    public function reject(int $rejectedBy, string $notes): self
     {
         $this->update([
             'status' => 'rejected',
-            'approved_by' => $approvedBy,
-            'approved_at' => Carbon::now(),
-            'approval_notes' => $notes,
+            'rejected_by' => $rejectedBy,
+            'rejection_notes' => $notes,
+            'rejected_at' => now(),
         ]);
+
+        return $this;
     }
 
     /**
-     * Complete this transfer.
+     * Complete the transfer.
      */
-    public function complete(): void
+    public function complete(): self
     {
-        $this->update([
-            'status' => 'completed',
-            'actual_transfer_date' => Carbon::now(),
-        ]);
-    }
-
-    /**
-     * Cancel this transfer.
-     */
-    public function cancel(string $notes = null): void
-    {
-        $this->update([
-            'status' => 'cancelled',
-            'approval_notes' => $notes,
-        ]);
-    }
-
-    /**
-     * Get transfer summary.
-     */
-    public function getTransferSummary(): string
-    {
-        $from = $this->fromBranch ? $this->fromBranch->name : ($this->fromRestaurant ? $this->fromRestaurant->name : 'Unknown');
-        $to = $this->toBranch ? $this->toBranch->name : ($this->toRestaurant ? $this->toRestaurant->name : 'Unknown');
-        
-        return "Transfer from {$from} to {$to}";
-    }
-
-    /**
-     * Get transfer duration (days between request and completion).
-     */
-    public function getTransferDuration(): ?int
-    {
-        if (!$this->actual_transfer_date) {
-            return null;
+        if (!$this->isApproved()) {
+            throw new \Exception('Transfer must be approved before completion');
         }
 
-        return $this->created_at->diffInDays($this->actual_transfer_date);
+        $this->update([
+            'status' => 'completed',
+            'completed_at' => now(),
+            'actual_transfer_date' => now()->toDateString(),
+        ]);
+
+        return $this;
     }
 
     /**
@@ -291,75 +206,22 @@ final class StaffTransferHistory extends Model
     }
 
     /**
-     * Scope to get transfers by type.
+     * Scope to get rejected transfers.
      */
-    public function scopeByType($query, string $type)
+    public function scopeRejected($query)
     {
-        return $query->where('transfer_type', $type);
+        return $query->where('status', 'rejected');
     }
 
     /**
-     * Scope to get transfers for a specific user.
+     * Get the duration of the transfer in days.
      */
-    public function scopeForUser($query, int $userId)
+    public function getTransferDuration(): ?int
     {
-        return $query->where('user_id', $userId);
-    }
+        if (!$this->created_at || !$this->completed_at) {
+            return null;
+        }
 
-    /**
-     * Scope to get transfers from a specific restaurant.
-     */
-    public function scopeFromRestaurant($query, int $restaurantId)
-    {
-        return $query->where('from_restaurant_id', $restaurantId);
-    }
-
-    /**
-     * Scope to get transfers to a specific restaurant.
-     */
-    public function scopeToRestaurant($query, int $restaurantId)
-    {
-        return $query->where('to_restaurant_id', $restaurantId);
-    }
-
-    /**
-     * Scope to get transfers from a specific branch.
-     */
-    public function scopeFromBranch($query, int $branchId)
-    {
-        return $query->where('from_branch_id', $branchId);
-    }
-
-    /**
-     * Scope to get transfers to a specific branch.
-     */
-    public function scopeToBranch($query, int $branchId)
-    {
-        return $query->where('to_branch_id', $branchId);
-    }
-
-    /**
-     * Scope to get transfers requested by a specific user.
-     */
-    public function scopeRequestedBy($query, int $userId)
-    {
-        return $query->where('requested_by', $userId);
-    }
-
-    /**
-     * Scope to get transfers approved by a specific user.
-     */
-    public function scopeApprovedBy($query, int $userId)
-    {
-        return $query->where('approved_by', $userId);
-    }
-
-    /**
-     * Scope to get overdue transfers.
-     */
-    public function scopeOverdue($query)
-    {
-        return $query->where('effective_date', '<', Carbon::today())
-            ->whereNotIn('status', ['completed', 'cancelled']);
+        return $this->created_at->diffInDays($this->completed_at);
     }
 } 

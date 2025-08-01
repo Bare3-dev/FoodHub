@@ -225,8 +225,8 @@ final class MultiRestaurantServiceTest extends TestCase
 
         // Assert
         $this->assertTrue($rejectedTransfer->isRejected());
-        $this->assertEquals($this->superAdmin->id, $rejectedTransfer->approved_by);
-        $this->assertNotNull($rejectedTransfer->approved_at);
+        $this->assertEquals($this->superAdmin->id, $rejectedTransfer->rejected_by);
+        $this->assertNotNull($rejectedTransfer->rejected_at);
     }
 
     /** @test */
@@ -302,11 +302,13 @@ final class MultiRestaurantServiceTest extends TestCase
 
         // Act & Assert
         // Super admin can approve any transfer
-        $this->assertTrue($this->service->approveStaffTransfer($transfer, $this->superAdmin->id));
+        $approvedTransfer = $this->service->approveStaffTransfer($transfer, $this->superAdmin->id);
+        $this->assertTrue($approvedTransfer->isApproved());
         
         // Restaurant owner can approve transfers within their restaurant
         $transfer->update(['status' => 'pending']);
-        $this->assertTrue($this->service->approveStaffTransfer($transfer, $this->restaurantOwner->id));
+        $approvedTransfer = $this->service->approveStaffTransfer($transfer, $this->restaurantOwner->id);
+        $this->assertTrue($approvedTransfer->isApproved());
         
         // Branch manager cannot approve cross-restaurant transfers
         $transfer->update(['status' => 'pending']);
@@ -380,6 +382,8 @@ final class MultiRestaurantServiceTest extends TestCase
 
         StaffTransferHistory::create([
             'user_id' => $this->branchManager->id,
+            'from_restaurant_id' => $this->restaurant1->id,
+            'to_restaurant_id' => $this->restaurant1->id,
             'from_branch_id' => $this->branch1->id,
             'to_branch_id' => $this->branch2->id,
             'transfer_type' => 'branch_to_branch',

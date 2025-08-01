@@ -32,6 +32,8 @@ class LoyaltyProgramPolicy
         // Fall back to role-based checks
         return $user->isSuperAdmin() || 
                $user->hasRole('RESTAURANT_OWNER') ||
+               $user->hasRole('BRANCH_MANAGER') ||
+               $user->hasRole('CASHIER') ||
                $user->hasRole('CUSTOMER_SERVICE');
     }
 
@@ -50,16 +52,32 @@ class LoyaltyProgramPolicy
             return false;
         }
 
-        // Check for specific permissions first
-        if ($user->hasPermission('loyalty-program:view') || 
-            $user->hasPermission('loyalty-program:manage')) {
+        // Super admin can view any loyalty program
+        if ($user->isSuperAdmin()) {
             return true;
         }
 
-        // Fall back to role-based checks
-        return $user->isSuperAdmin() || 
-               $user->hasRole('RESTAURANT_OWNER') ||
-               $user->hasRole('CUSTOMER_SERVICE');
+        // Restaurant owners can view loyalty programs in their restaurants
+        if ($user->hasRole('RESTAURANT_OWNER') && $user->restaurant_id === $loyaltyProgram->restaurant_id) {
+            return true;
+        }
+
+        // Branch managers can view loyalty programs in their restaurant
+        if ($user->hasRole('BRANCH_MANAGER') && $user->restaurant_id === $loyaltyProgram->restaurant_id) {
+            return true;
+        }
+
+        // Cashiers can view loyalty programs in their restaurant
+        if ($user->hasRole('CASHIER') && $user->restaurant_id === $loyaltyProgram->restaurant_id) {
+            return true;
+        }
+
+        // Customer service can view any loyalty program
+        if ($user->hasRole('CUSTOMER_SERVICE')) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -96,9 +114,27 @@ class LoyaltyProgramPolicy
             return false;
         }
 
-        return $user->isSuperAdmin() || 
-               $user->hasRole('RESTAURANT_OWNER') ||
-               $user->hasRole('CUSTOMER_SERVICE');
+        // Super admin can update any loyalty program
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        // Restaurant owners can update loyalty programs in their restaurants
+        if ($user->hasRole('RESTAURANT_OWNER') && $user->restaurant_id === $loyaltyProgram->restaurant_id) {
+            return true;
+        }
+
+        // Branch managers can update loyalty programs in their restaurant
+        if ($user->hasRole('BRANCH_MANAGER') && $user->restaurant_id === $loyaltyProgram->restaurant_id) {
+            return true;
+        }
+
+        // Customer service can update any loyalty program
+        if ($user->hasRole('CUSTOMER_SERVICE')) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -116,7 +152,17 @@ class LoyaltyProgramPolicy
             return false;
         }
 
-        return $user->isSuperAdmin();
+        // Super admin can delete any loyalty program
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        // Restaurant owners can delete loyalty programs in their restaurants
+        if ($user->hasRole('RESTAURANT_OWNER') && $user->restaurant_id === $loyaltyProgram->restaurant_id) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -134,7 +180,17 @@ class LoyaltyProgramPolicy
             return false;
         }
 
-        return $user->isSuperAdmin();
+        // Super admin can restore any loyalty program
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        // Restaurant owners can restore loyalty programs in their restaurants
+        if ($user->hasRole('RESTAURANT_OWNER') && $user->restaurant_id === $loyaltyProgram->restaurant_id) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -152,6 +208,16 @@ class LoyaltyProgramPolicy
             return false;
         }
 
-        return $user->isSuperAdmin();
+        // Super admin can permanently delete any loyalty program
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        // Restaurant owners can permanently delete loyalty programs in their restaurants
+        if ($user->hasRole('RESTAURANT_OWNER') && $user->restaurant_id === $loyaltyProgram->restaurant_id) {
+            return true;
+        }
+
+        return false;
     }
 }

@@ -74,6 +74,27 @@ class OrderPolicyTest extends TestCase
             'restaurant_id' => $this->restaurant->id
         ]);
         
+        // Associate all staff users with the restaurant and branch
+        $this->branchManager->update([
+            'restaurant_id' => $this->restaurant->id,
+            'restaurant_branch_id' => $this->branch->id
+        ]);
+        
+        $this->cashier->update([
+            'restaurant_id' => $this->restaurant->id,
+            'restaurant_branch_id' => $this->branch->id
+        ]);
+        
+        $this->customerService->update([
+            'restaurant_id' => $this->restaurant->id,
+            'restaurant_branch_id' => $this->branch->id
+        ]);
+        
+        $this->kitchenStaff->update([
+            'restaurant_id' => $this->restaurant->id,
+            'restaurant_branch_id' => $this->branch->id
+        ]);
+        
         // Create test customer
         $this->customer = Customer::factory()->create([
             'first_name' => 'John',
@@ -227,7 +248,7 @@ class OrderPolicyTest extends TestCase
     public function unauthorized_users_cannot_access_orders()
     {
         $unauthorizedUser = User::factory()->create([
-            'role' => 'CUSTOMER',
+            'role' => 'DRIVER', // Using DRIVER role which doesn't have order management permissions
             'status' => 'active'
         ]);
         

@@ -99,6 +99,14 @@ final class Restaurant extends Model
     }
 
     /**
+     * Get the customer feedback for this restaurant.
+     */
+    public function customerFeedback(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(CustomerFeedback::class);
+    }
+
+    /**
      * Scope a query to only include active restaurants.
      */
     public function scopeActive($query)

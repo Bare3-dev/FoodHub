@@ -301,10 +301,12 @@ final class AnalyticsService
      */
     private function calculateDailyRevenue(Restaurant $restaurant, Carbon $date): ?float
     {
-        return Order::where('restaurant_id', $restaurant->id)
+        $revenue = Order::where('restaurant_id', $restaurant->id)
             ->whereDate('created_at', $date)
             ->where('payment_status', 'paid')
             ->sum('total_amount');
+            
+        return $revenue ? (float) $revenue : null;
     }
 
     /**
@@ -400,10 +402,10 @@ final class AnalyticsService
         return [
             'analytics' => $analytics->groupBy('metric_name'),
             'performance_metrics' => $performanceMetrics->groupBy('metric_type'),
-            'customer_feedback' => [
+                        'customer_feedback' => [
                 'total_feedback' => $customerFeedback->count(),
-                'average_rating' => round($customerFeedback->avg('rating'), 2),
-                'positive_feedback_percentage' => $customerFeedback->count() > 0 
+                'average_rating' => $customerFeedback->count() > 0 ? round($customerFeedback->avg('rating'), 2) : 0,
+                'positive_feedback_percentage' => $customerFeedback->count() > 0
                     ? round(($customerFeedback->where('rating', '>=', 4)->count() / $customerFeedback->count()) * 100, 2)
                     : 0,
                 'feedback_by_type' => $customerFeedback->groupBy('feedback_type')->map->count(),

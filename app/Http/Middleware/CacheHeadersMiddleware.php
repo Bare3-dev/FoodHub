@@ -58,23 +58,23 @@ class CacheHeadersMiddleware
     {
         $configs = [
             'restaurants' => [
-                'cache_control' => 'public, max-age=300, s-maxage=300', // 5 minutes
+                'cache_control' => 'max-age=300, public, s-maxage=300', // 5 minutes
                 'expires' => gmdate('D, d M Y H:i:s', time() + 300) . ' GMT',
             ],
             'menu_items' => [
-                'cache_control' => 'public, max-age=300, s-maxage=300', // 5 minutes
+                'cache_control' => 'max-age=300, public, s-maxage=300', // 5 minutes
                 'expires' => gmdate('D, d M Y H:i:s', time() + 300) . ' GMT',
             ],
             'menu_categories' => [
-                'cache_control' => 'public, max-age=1800, s-maxage=1800', // 30 minutes
+                'cache_control' => 'max-age=1800, public, s-maxage=1800', // 30 minutes
                 'expires' => gmdate('D, d M Y H:i:s', time() + 1800) . ' GMT',
             ],
             'restaurant_branches' => [
-                'cache_control' => 'public, max-age=1800, s-maxage=1800', // 30 minutes
+                'cache_control' => 'max-age=1800, public, s-maxage=1800', // 30 minutes
                 'expires' => gmdate('D, d M Y H:i:s', time() + 1800) . ' GMT',
             ],
             'default' => [
-                'cache_control' => 'public, max-age=600, s-maxage=600', // 10 minutes
+                'cache_control' => 'max-age=600, public, s-maxage=600', // 10 minutes
                 'expires' => gmdate('D, d M Y H:i:s', time() + 600) . ' GMT',
             ],
         ];

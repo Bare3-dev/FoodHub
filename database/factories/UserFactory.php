@@ -26,7 +26,7 @@ class UserFactory extends Factory
         $roles = [
             'SUPER_ADMIN', 'RESTAURANT_OWNER', 'BRANCH_MANAGER',
             'CASHIER', 'KITCHEN_STAFF', 'DELIVERY_MANAGER', 
-            'CUSTOMER_SERVICE'
+            'CUSTOMER_SERVICE', 'DRIVER'
         ];
 
         return [

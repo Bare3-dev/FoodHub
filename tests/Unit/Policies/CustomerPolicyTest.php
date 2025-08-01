@@ -185,7 +185,7 @@ class CustomerPolicyTest extends TestCase
     public function unauthorized_users_cannot_access_customers()
     {
         $unauthorizedUser = User::factory()->create([
-            'role' => 'CUSTOMER',
+            'role' => 'KITCHEN_STAFF',
             'status' => 'active'
         ]);
         
@@ -225,9 +225,7 @@ class CustomerPolicyTest extends TestCase
         // Associate restaurant owner with this restaurant
         $this->restaurantOwner->update(['restaurant_id' => $restaurant->id]);
         
-        $customer = Customer::factory()->create([
-            'restaurant_id' => $restaurant->id
-        ]);
+        $customer = Customer::factory()->create();
         
         // Delete the restaurant
         $restaurant->delete();

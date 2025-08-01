@@ -191,6 +191,14 @@ class CustomerTest extends TestCase
             'status' => 'suspended'
         ]);
 
+        Customer::create([
+            'first_name' => 'Test',
+            'last_name' => 'Customer',
+            'email' => 'active@example.com',
+            'password' => Hash::make('password'),
+            'status' => 'active'
+        ]);
+
         $activeCustomers = Customer::whereStatus('active')->get();
         $this->assertGreaterThan(0, $activeCustomers->count());
         $this->assertEquals('active', $activeCustomers->first()->status);

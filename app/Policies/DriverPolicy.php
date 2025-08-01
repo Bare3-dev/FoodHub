@@ -70,7 +70,6 @@ class DriverPolicy
         }
 
         return $user->isSuperAdmin() || 
-               $user->hasRole('RESTAURANT_OWNER') || 
                $user->hasRole('BRANCH_MANAGER') || 
                $user->hasRole('DELIVERY_MANAGER');
     }
@@ -112,7 +111,6 @@ class DriverPolicy
         }
 
         return $user->isSuperAdmin() || 
-               $user->hasRole('RESTAURANT_OWNER') ||
                $user->hasRole('BRANCH_MANAGER') ||
                $user->hasRole('DELIVERY_MANAGER');
     }
@@ -132,7 +130,9 @@ class DriverPolicy
             return false;
         }
 
-        return $user->isSuperAdmin();
+        return $user->isSuperAdmin() || 
+               $user->hasRole('BRANCH_MANAGER') ||
+               $user->hasRole('DELIVERY_MANAGER');
     }
 
     /**
@@ -150,6 +150,8 @@ class DriverPolicy
             return false;
         }
 
-        return $user->isSuperAdmin();
+        return $user->isSuperAdmin() || 
+               $user->hasRole('BRANCH_MANAGER') ||
+               $user->hasRole('DELIVERY_MANAGER');
     }
 }

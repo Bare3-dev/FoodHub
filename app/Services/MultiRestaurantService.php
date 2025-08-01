@@ -116,6 +116,9 @@ final class MultiRestaurantService
             // Validate transfer request
             $this->validateTransferRequest($transferData);
 
+            // Ensure status is set to pending
+            $transferData['status'] = 'pending';
+
             // Create transfer record
             $transfer = StaffTransferHistory::create($transferData);
 
@@ -291,14 +294,17 @@ final class MultiRestaurantService
             }
         }
 
-        // Branch managers can approve transfers within their branches
+        // Branch managers can approve transfers within their branches only (no cross-restaurant)
         if ($user->role === 'BRANCH_MANAGER') {
-            if ($transfer->from_branch_id && $transfer->from_branch_id === $user->restaurant_branch_id) {
-                return true;
-            }
-            if ($transfer->to_branch_id && $transfer->to_branch_id === $user->restaurant_branch_id) {
-                return true;
-            }
+            // Check if transfer involves their branch
+            $involvesUserBranch = ($transfer->from_branch_id && $transfer->from_branch_id === $user->restaurant_branch_id) ||
+                                 ($transfer->to_branch_id && $transfer->to_branch_id === $user->restaurant_branch_id);
+            
+            // Check if it's within the same restaurant (not cross-restaurant)
+            $sameRestaurant = $transfer->from_restaurant_id === $transfer->to_restaurant_id &&
+                             $transfer->from_restaurant_id === $user->restaurant_id;
+            
+            return $involvesUserBranch && $sameRestaurant;
         }
 
         return false;
@@ -326,10 +332,14 @@ final class MultiRestaurantService
                 break;
 
             case 'BRANCH_MANAGER':
-                // Can see transfers within their branch
+                // Can see transfers within their branch only (no cross-restaurant)
                 $query->where(function ($q) use ($user) {
                     $q->where('from_branch_id', $user->restaurant_branch_id)
                       ->orWhere('to_branch_id', $user->restaurant_branch_id);
+                })->where(function ($q) use ($user) {
+                    // Ensure both from and to restaurants are the same as user's restaurant
+                    $q->where('from_restaurant_id', $user->restaurant_id)
+                      ->where('to_restaurant_id', $user->restaurant_id);
                 });
                 break;
 
@@ -413,6 +423,10 @@ final class MultiRestaurantService
             return $user->restaurant_id === $targetRestaurant->id;
         }
 
+        if ($user->role === 'BRANCH_MANAGER' || $user->role === 'CASHIER') {
+            return $user->restaurant_id === $targetRestaurant->id;
+        }
+
         return false;
     }
 
@@ -426,6 +440,10 @@ final class MultiRestaurantService
         }
 
         if ($user->role === 'RESTAURANT_OWNER') {
+            return Restaurant::where('id', $user->restaurant_id)->get();
+        }
+
+        if ($user->role === 'BRANCH_MANAGER' || $user->role === 'CASHIER') {
             return Restaurant::where('id', $user->restaurant_id)->get();
         }
 

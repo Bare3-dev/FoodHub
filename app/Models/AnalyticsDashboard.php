@@ -14,6 +14,11 @@ final class AnalyticsDashboard extends Model
     use HasFactory;
 
     /**
+     * The table associated with the model.
+     */
+    protected $table = 'analytics_dashboard';
+
+    /**
      * The attributes that are mass assignable.
      */
     protected $fillable = [
@@ -123,7 +128,10 @@ final class AnalyticsDashboard extends Model
      */
     public function getPrimaryValue()
     {
-        return $this->metric_value['primary_value'] ?? null;
+        if (is_array($this->metric_value)) {
+            return $this->metric_value['primary_value'] ?? null;
+        }
+        return $this->metric_value;
     }
 
     /**
@@ -131,7 +139,10 @@ final class AnalyticsDashboard extends Model
      */
     public function getSecondaryValue()
     {
-        return $this->metric_value['secondary_value'] ?? null;
+        if (is_array($this->metric_value)) {
+            return $this->metric_value['secondary_value'] ?? null;
+        }
+        return null;
     }
 
     /**
@@ -139,7 +150,10 @@ final class AnalyticsDashboard extends Model
      */
     public function getTrendValue()
     {
-        return $this->metric_value['trend'] ?? null;
+        if (is_array($this->metric_value)) {
+            return $this->metric_value['trend'] ?? null;
+        }
+        return null;
     }
 
     /**

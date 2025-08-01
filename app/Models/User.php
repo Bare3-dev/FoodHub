@@ -87,6 +87,22 @@ final class User extends Authenticatable
     }
 
     /**
+     * Get the staff availability for this user.
+     */
+    public function availability(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(StaffAvailability::class);
+    }
+
+    /**
+     * Get the staff shifts for this user.
+     */
+    public function shifts(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(StaffShift::class);
+    }
+
+    /**
      * Check if the user has a specific role.
      */
     public function hasRole(string $role): bool

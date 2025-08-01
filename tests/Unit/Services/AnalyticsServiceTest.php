@@ -60,12 +60,14 @@ final class AnalyticsServiceTest extends TestCase
             'restaurant_branch_id' => $this->branch->id,
             'confirmed_at' => $date->copy()->setTime(10, 0),
             'prepared_at' => $date->copy()->setTime(10, 15), // 15 minutes processing
+            'created_at' => $date,
         ]);
 
         $order2 = Order::factory()->create([
             'restaurant_branch_id' => $this->branch->id,
             'confirmed_at' => $date->copy()->setTime(11, 0),
             'prepared_at' => $date->copy()->setTime(11, 20), // 20 minutes processing
+            'created_at' => $date,
         ]);
 
         // Create customer feedback for satisfaction calculation
@@ -78,6 +80,7 @@ final class AnalyticsServiceTest extends TestCase
             'rating' => 4,
             'feedback_type' => 'service',
             'status' => 'approved',
+            'created_at' => $date,
         ]);
 
         CustomerFeedback::create([
@@ -89,6 +92,7 @@ final class AnalyticsServiceTest extends TestCase
             'rating' => 5,
             'feedback_type' => 'service',
             'status' => 'approved',
+            'created_at' => $date,
         ]);
 
         // Act
@@ -114,38 +118,42 @@ final class AnalyticsServiceTest extends TestCase
         // Arrange
         $date = Carbon::today();
         
-        // Create orders for revenue calculation
-        Order::factory()->create([
+        // Create orders for revenue calculation with the correct date
+        $order1 = Order::factory()->create([
             'restaurant_id' => $this->restaurant->id,
             'payment_status' => 'paid',
             'total_amount' => 100.00,
+            'created_at' => $date,
         ]);
 
-        Order::factory()->create([
+        $order2 = Order::factory()->create([
             'restaurant_id' => $this->restaurant->id,
             'payment_status' => 'paid',
             'total_amount' => 150.00,
+            'created_at' => $date,
         ]);
 
-        // Create customer feedback for satisfaction calculation
+        // Create customer feedback for satisfaction calculation with the correct date
         CustomerFeedback::create([
-            'order_id' => 1,
+            'order_id' => $order1->id,
             'customer_id' => $this->customer->id,
             'restaurant_id' => $this->restaurant->id,
             'restaurant_branch_id' => $this->branch->id,
             'rating' => 4,
             'feedback_type' => 'overall',
             'status' => 'approved',
+            'created_at' => $date,
         ]);
 
         CustomerFeedback::create([
-            'order_id' => 2,
+            'order_id' => $order2->id,
             'customer_id' => $this->customer->id,
             'restaurant_id' => $this->restaurant->id,
             'restaurant_branch_id' => $this->branch->id,
             'rating' => 5,
             'feedback_type' => 'overall',
             'status' => 'approved',
+            'created_at' => $date,
         ]);
 
         // Act
@@ -195,9 +203,14 @@ final class AnalyticsServiceTest extends TestCase
             'metric_date' => $startDate,
         ]);
 
-        // Create customer feedback
+        // Create order and customer feedback
+        $order = Order::factory()->create([
+            'restaurant_id' => $this->restaurant->id,
+            'restaurant_branch_id' => $this->branch->id,
+        ]);
+
         CustomerFeedback::create([
-            'order_id' => 1,
+            'order_id' => $order->id,
             'customer_id' => $this->customer->id,
             'restaurant_id' => $this->restaurant->id,
             'restaurant_branch_id' => $this->branch->id,
@@ -243,9 +256,19 @@ final class AnalyticsServiceTest extends TestCase
             'metric_date' => $startDate,
         ]);
 
-        // Create customer feedback
+        // Create orders and customer feedback
+        $order1 = Order::factory()->create([
+            'restaurant_id' => $this->restaurant->id,
+            'restaurant_branch_id' => $this->branch->id,
+        ]);
+
+        $order2 = Order::factory()->create([
+            'restaurant_id' => $this->restaurant->id,
+            'restaurant_branch_id' => $this->branch->id,
+        ]);
+
         CustomerFeedback::create([
-            'order_id' => 1,
+            'order_id' => $order1->id,
             'customer_id' => $this->customer->id,
             'restaurant_id' => $this->restaurant->id,
             'restaurant_branch_id' => $this->branch->id,
@@ -256,7 +279,7 @@ final class AnalyticsServiceTest extends TestCase
         ]);
 
         CustomerFeedback::create([
-            'order_id' => 2,
+            'order_id' => $order2->id,
             'customer_id' => $this->customer->id,
             'restaurant_id' => $this->restaurant->id,
             'restaurant_branch_id' => $this->branch->id,
@@ -404,9 +427,22 @@ final class AnalyticsServiceTest extends TestCase
         // Arrange
         $date = Carbon::today();
         
+        // Create orders first
+        $order1 = Order::factory()->create([
+            'restaurant_id' => $this->restaurant->id,
+            'restaurant_branch_id' => $this->branch->id,
+            'created_at' => $date,
+        ]);
+
+        $order2 = Order::factory()->create([
+            'restaurant_id' => $this->restaurant->id,
+            'restaurant_branch_id' => $this->branch->id,
+            'created_at' => $date,
+        ]);
+
         // Create approved feedback
         CustomerFeedback::create([
-            'order_id' => 1,
+            'order_id' => $order1->id,
             'customer_id' => $this->customer->id,
             'restaurant_id' => $this->restaurant->id,
             'restaurant_branch_id' => $this->branch->id,
@@ -414,11 +450,12 @@ final class AnalyticsServiceTest extends TestCase
             'rating' => 4,
             'feedback_type' => 'service',
             'status' => 'approved',
+            'created_at' => $date,
         ]);
 
         // Create pending feedback (should be ignored)
         CustomerFeedback::create([
-            'order_id' => 2,
+            'order_id' => $order2->id,
             'customer_id' => $this->customer->id,
             'restaurant_id' => $this->restaurant->id,
             'restaurant_branch_id' => $this->branch->id,
@@ -426,6 +463,7 @@ final class AnalyticsServiceTest extends TestCase
             'rating' => 5,
             'feedback_type' => 'service',
             'status' => 'pending',
+            'created_at' => $date,
         ]);
 
         // Act
@@ -450,6 +488,7 @@ final class AnalyticsServiceTest extends TestCase
             'restaurant_branch_id' => $this->branch->id,
             'confirmed_at' => $date->copy()->setTime(10, 0),
             'prepared_at' => $date->copy()->setTime(10, 30), // 30 minutes total
+            'created_at' => $date,
         ]);
 
         // Act
@@ -469,9 +508,22 @@ final class AnalyticsServiceTest extends TestCase
         // Arrange
         $date = Carbon::today();
         
+        // Create orders first
+        $order1 = Order::factory()->create([
+            'restaurant_id' => $this->restaurant->id,
+            'restaurant_branch_id' => $this->branch->id,
+            'created_at' => $date,
+        ]);
+
+        $order2 = Order::factory()->create([
+            'restaurant_id' => $this->restaurant->id,
+            'restaurant_branch_id' => $this->branch->id,
+            'created_at' => $date,
+        ]);
+
         // Create feedback for different types
         CustomerFeedback::create([
-            'order_id' => 1,
+            'order_id' => $order1->id,
             'customer_id' => $this->customer->id,
             'restaurant_id' => $this->restaurant->id,
             'restaurant_branch_id' => $this->branch->id,
@@ -479,10 +531,11 @@ final class AnalyticsServiceTest extends TestCase
             'rating' => 4,
             'feedback_type' => 'service',
             'status' => 'approved',
+            'created_at' => $date,
         ]);
 
         CustomerFeedback::create([
-            'order_id' => 2,
+            'order_id' => $order2->id,
             'customer_id' => $this->customer->id,
             'restaurant_id' => $this->restaurant->id,
             'restaurant_branch_id' => $this->branch->id,
@@ -490,6 +543,7 @@ final class AnalyticsServiceTest extends TestCase
             'rating' => 5,
             'feedback_type' => 'food_quality',
             'status' => 'approved',
+            'created_at' => $date,
         ]);
 
         // Act

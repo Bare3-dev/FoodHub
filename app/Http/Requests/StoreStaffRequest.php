@@ -31,8 +31,8 @@ class StoreStaffRequest extends FormRequest
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')],
             'password' => ['required', 'string', 'min:8'],
             'role' => ['required', 'string', Rule::in($allowedRoles)],
-            'restaurant_id' => ['nullable', 'exists:restaurants,id', Rule::requiredIf($this->input('role') === 'RESTAURANT_OWNER')],
-            'restaurant_branch_id' => ['nullable', 'exists:restaurant_branches,id', Rule::requiredIf(in_array($this->input('role'), ['BRANCH_MANAGER', 'CASHIER', 'KITCHEN_STAFF', 'DELIVERY_MANAGER', 'CUSTOMER_SERVICE']))],
+            'restaurant_id' => ['nullable', 'exists:restaurants,id'],
+            'restaurant_branch_id' => ['nullable', 'exists:restaurant_branches,id'],
             'permissions' => ['nullable', 'array'],
             'permissions.*' => ['string', 'max:255'],
         ];

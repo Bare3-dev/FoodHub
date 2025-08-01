@@ -199,6 +199,9 @@ class OrderTest extends TestCase
     #[Test]
     public function it_scopes_orders_by_status()
     {
+        // Clear existing orders to ensure clean test state
+        Order::query()->delete();
+        
         Order::factory()->create(['status' => 'pending']);
         Order::factory()->create(['status' => 'confirmed']);
         Order::factory()->create(['status' => 'completed']);

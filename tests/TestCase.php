@@ -11,12 +11,13 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Laravel\Sanctum\Sanctum;
-use App\Http\Middleware\HttpsEnforcementMiddleware; // Add this import
-use App\Http\Middleware\AdvancedRateLimitMiddleware; // Add this import
-use App\Http\Middleware\ApiCorsMiddleware; // Add this import
-use App\Http\Middleware\InputSanitizationMiddleware; // Add this import
-use App\Http\Middleware\RoleAndPermissionMiddleware; // Add this import
-use Illuminate\Support\Facades\Hash; // Add this import
+use App\Http\Middleware\HttpsEnforcementMiddleware;
+use App\Http\Middleware\AdvancedRateLimitMiddleware;
+use App\Http\Middleware\ApiCorsMiddleware;
+use App\Http\Middleware\InputSanitizationMiddleware;
+use App\Http\Middleware\RoleAndPermissionMiddleware;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -31,15 +32,11 @@ abstract class TestCase extends BaseTestCase
         ini_set('max_execution_time', 300);
 
         // Explicitly bind middleware aliases for testing environment
-        // This resolves "Target class [...] does not exist" errors for route middleware aliases
         $this->app->singleton('https.security', HttpsEnforcementMiddleware::class);
         $this->app->singleton('advanced.rate.limit', AdvancedRateLimitMiddleware::class);
         $this->app->singleton('api.cors', ApiCorsMiddleware::class);
         $this->app->singleton('input.sanitization', InputSanitizationMiddleware::class);
         $this->app->singleton('role.permission', RoleAndPermissionMiddleware::class);
-
-        // RefreshDatabase trait handles database setup efficiently for PostgreSQL
-        // No need for manual migrate:fresh in setUp
     }
 
     protected function tearDown(): void
