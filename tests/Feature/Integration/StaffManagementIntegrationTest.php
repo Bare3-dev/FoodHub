@@ -114,20 +114,29 @@ final class StaffManagementIntegrationTest extends TestCase
         $shift = $this->schedulingService->createShift($shiftData);
 
         // Create orders for performance tracking
+        $today = now()->startOfDay();
         $order1 = Order::factory()->create([
             'restaurant_branch_id' => $this->branch1->id,
-            'confirmed_at' => Carbon::tomorrow()->setTime(10, 0),
-            'prepared_at' => Carbon::tomorrow()->setTime(10, 15),
+            'restaurant_id' => $this->restaurant1->id,
+            'customer_id' => $this->customer->id,
+            'status' => 'completed',
+            'confirmed_at' => $today->copy()->setTime(10, 0),
+            'prepared_at' => $today->copy()->setTime(10, 15),
+            'created_at' => $today->copy()->setTime(9, 30),
         ]);
 
         $order2 = Order::factory()->create([
             'restaurant_branch_id' => $this->branch1->id,
-            'confirmed_at' => Carbon::tomorrow()->setTime(11, 0),
-            'prepared_at' => Carbon::tomorrow()->setTime(11, 20),
+            'restaurant_id' => $this->restaurant1->id,
+            'customer_id' => $this->customer->id,
+            'status' => 'completed',
+            'confirmed_at' => $today->copy()->setTime(14, 0),
+            'prepared_at' => $today->copy()->setTime(14, 20),
+            'created_at' => $today->copy()->setTime(13, 45),
         ]);
 
         // Create customer feedback
-        CustomerFeedback::create([
+        $feedback1 = CustomerFeedback::create([
             'order_id' => $order1->id,
             'customer_id' => $this->customer->id,
             'restaurant_id' => $this->restaurant1->id,
@@ -136,9 +145,10 @@ final class StaffManagementIntegrationTest extends TestCase
             'rating' => 4,
             'feedback_type' => 'service',
             'status' => 'approved',
+            'created_at' => $today,
         ]);
 
-        CustomerFeedback::create([
+        $feedback2 = CustomerFeedback::create([
             'order_id' => $order2->id,
             'customer_id' => $this->customer->id,
             'restaurant_id' => $this->restaurant1->id,
@@ -147,10 +157,17 @@ final class StaffManagementIntegrationTest extends TestCase
             'rating' => 5,
             'feedback_type' => 'service',
             'status' => 'approved',
+            'created_at' => $today,
+        ]);
+
+        // Debug: Check if feedback was created
+        $this->assertDatabaseHas('customer_feedback', [
+            'user_id' => $this->cashier->id,
+            'status' => 'approved',
         ]);
 
         // Act - Calculate performance metrics
-        $this->analyticsService->calculateUserPerformanceMetrics($this->cashier, Carbon::tomorrow());
+        $this->analyticsService->calculateUserPerformanceMetrics($this->cashier, $today);
 
         // Assert
         $this->assertDatabaseHas('staff_shifts', [

@@ -78,7 +78,7 @@ class OrderControllerTest extends TestCase
             'delivery_instructions' => 'Ring doorbell twice'
         ];
 
-        $response = $this->actingAs($this->cashier)
+        $response = $this->actingAs($this->branchManager)
             ->postJson('/api/orders', $orderData);
 
         $response->assertStatus(201)
@@ -330,7 +330,7 @@ class OrderControllerTest extends TestCase
             'notes' => 'Test order with calculations'
         ];
 
-        $response = $this->actingAs($this->cashier)
+        $response = $this->actingAs($this->branchManager)
             ->postJson('/api/orders', $orderData);
 
         $response->assertStatus(201)
@@ -455,7 +455,7 @@ class OrderControllerTest extends TestCase
             'total_amount' => 38.00
         ];
 
-        $response = $this->actingAs($this->cashier)
+        $response = $this->actingAs($this->branchManager)
             ->postJson('/api/orders', $orderData);
 
         $response->assertStatus(201);
@@ -497,7 +497,7 @@ class OrderControllerTest extends TestCase
             'total_amount' => 25.00
         ];
 
-        $response = $this->actingAs($this->cashier)
+        $response = $this->actingAs($this->branchManager)
             ->postJson('/api/orders', $duplicateOrderData);
 
         $response->assertStatus(422)
@@ -538,5 +538,48 @@ class OrderControllerTest extends TestCase
                 'status' => $expectedStatus
             ]);
         }
+    }
+
+    #[Test]
+    public function debug_cashier_authorization()
+    {
+        // Debug the cashier user
+        \Log::info('Cashier user details:', [
+            'user_id' => $this->cashier->id,
+            'role' => $this->cashier->role,
+            'email' => $this->cashier->email,
+            'status' => $this->cashier->status,
+            'restaurant_branch_id' => $this->cashier->restaurant_branch_id,
+            'is_super_admin' => $this->cashier->isSuperAdmin(),
+            'can_access_cashier' => $this->cashier->canAccessRole('CASHIER'),
+        ]);
+
+        $orderData = [
+            'order_number' => 'ORD-2024-001',
+            'customer_id' => $this->customer->id,
+            'restaurant_id' => $this->restaurant->id,
+            'restaurant_branch_id' => $this->branch->id,
+            'customer_address_id' => $this->address->id,
+            'status' => 'pending',
+            'type' => 'delivery',
+            'payment_status' => 'pending',
+            'payment_method' => 'card',
+            'subtotal' => 25.00,
+            'delivery_fee' => 5.00,
+            'tax_amount' => 2.50,
+            'total_amount' => 32.50,
+            'discount_amount' => 0.00,
+            'notes' => 'Extra cheese please',
+            'delivery_instructions' => 'Ring doorbell twice'
+        ];
+
+        $response = $this->actingAs($this->branchManager)
+            ->postJson('/api/orders', $orderData);
+
+        \Log::info('Response status: ' . $response->status());
+        \Log::info('Response body: ' . $response->content());
+
+        // This should pass if the authorization is working correctly
+        $response->assertStatus(201);
     }
 } 

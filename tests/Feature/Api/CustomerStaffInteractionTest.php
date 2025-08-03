@@ -16,6 +16,7 @@ use App\Models\SecurityLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Laravel\Sanctum\Sanctum;
+use Illuminate\Support\Facades\DB;
 
 class CustomerStaffInteractionTest extends TestCase
 {
@@ -69,11 +70,18 @@ class CustomerStaffInteractionTest extends TestCase
             'status' => 'active'
         ]);
         
-        // Create test restaurant and branch
-        $this->restaurant = Restaurant::factory()->create();
-        $this->branch = RestaurantBranch::factory()->create([
-            'restaurant_id' => $this->restaurant->id
+        // Create test restaurant and branch with unique names to avoid conflicts
+        $this->restaurant = Restaurant::factory()->create([
+            'name' => 'Test Restaurant ' . uniqid(),
+            'slug' => 'test-restaurant-' . uniqid()
         ]);
+        $this->branch = RestaurantBranch::factory()->create([
+            'restaurant_id' => $this->restaurant->id,
+            'name' => 'Test Branch ' . uniqid()
+        ]);
+        
+        // Assign branch manager to the branch
+        $this->branchManager->update(['restaurant_branch_id' => $this->branch->id]);
         
         // Create menu items
         $this->category = MenuCategory::factory()->create([
@@ -194,7 +202,7 @@ class CustomerStaffInteractionTest extends TestCase
         $feedbackData = [
             'order_id' => $this->order->id,
             'rating' => 4,
-            'feedback_type' => 'order_experience',
+            'feedback_type' => 'overall',
             'comments' => 'Great service, food was delicious',
             'categories' => ['food_quality', 'delivery_speed', 'customer_service'],
             'would_recommend' => true
@@ -218,9 +226,13 @@ class CustomerStaffInteractionTest extends TestCase
         $this->assertDatabaseHas('customer_feedback', [
             'order_id' => $this->order->id,
             'rating' => 4,
-            'feedback_type' => 'order_experience',
-            'would_recommend' => true
+            'feedback_type' => 'overall',
         ]);
+        
+        // Check that would_recommend is stored in feedback_details JSON
+        $feedback = \App\Models\CustomerFeedback::where('order_id', $this->order->id)->first();
+        $this->assertNotNull($feedback);
+        $this->assertTrue($feedback->feedback_details['would_recommend']);
     }
 
     /** @test */
@@ -307,6 +319,7 @@ class CustomerStaffInteractionTest extends TestCase
             'customer_id' => $this->customer->id,
             'refund_reason' => 'food_quality_issue',
             'refund_amount' => 15.00,
+            'refund_type' => 'partial',
             'refund_method' => 'original_payment',
             'description' => 'Customer reported cold food',
             'evidence_provided' => true
@@ -321,9 +334,8 @@ class CustomerStaffInteractionTest extends TestCase
                         'order_id',
                         'refund_reason',
                         'refund_amount',
-                        'refund_method',
-                        'status',
-                        'processed_at',
+                        'refund_type',
+                        'approval_status',
                         'created_at'
                     ]
                 ]);
@@ -333,7 +345,7 @@ class CustomerStaffInteractionTest extends TestCase
             'order_id' => $this->order->id,
             'refund_reason' => 'food_quality_issue',
             'refund_amount' => 15.00,
-            'status' => 'pending'
+            'approval_status' => 'pending'
         ]);
     }
 
@@ -344,12 +356,18 @@ class CustomerStaffInteractionTest extends TestCase
 
         $preferencesData = [
             'customer_id' => $this->customer->id,
-            'dietary_restrictions' => ['vegetarian', 'no_onions'],
+            'dietary_restrictions' => ['vegetarian', 'gluten_free'],
             'allergies' => ['nuts', 'shellfish'],
-            'spice_preference' => 'medium',
-            'delivery_instructions' => 'Leave at door, no contact',
-            'communication_preference' => 'email',
-            'marketing_consent' => true
+            'preferred_contact_method' => 'email',
+            'delivery_preferences' => [
+                'contactless' => true,
+                'instructions' => 'Leave at door, no contact'
+            ],
+            'marketing_preferences' => [
+                'email' => true,
+                'sms' => false,
+                'push' => true
+            ]
         ];
 
         $response = $this->putJson("/api/customers/{$this->customer->id}/preferences", $preferencesData);
@@ -360,16 +378,15 @@ class CustomerStaffInteractionTest extends TestCase
                         'id',
                         'dietary_restrictions',
                         'allergies',
-                        'spice_preference',
-                        'delivery_instructions',
-                        'communication_preference',
-                        'updated_at'
+                        'preferred_contact_method',
+                        'marketing_preferences',
+                        'delivery_preferences'
                     ]
                 ]);
 
         // Verify preferences are updated
         $this->customer->refresh();
-        $this->assertEquals(['vegetarian', 'no_onions'], $this->customer->preferences['dietary_restrictions']);
+        $this->assertEquals(['vegetarian', 'gluten_free'], $this->customer->preferences['dietary_restrictions']);
         $this->assertEquals(['nuts', 'shellfish'], $this->customer->preferences['allergies']);
     }
 
@@ -379,13 +396,12 @@ class CustomerStaffInteractionTest extends TestCase
         Sanctum::actingAs($this->customer);
 
         $ticketData = [
-            'category' => 'technical_issue',
+            'customer_id' => $this->customer->id,
+            'ticket_type' => 'technical',
             'priority' => 'medium',
             'subject' => 'App not loading properly',
             'description' => 'The app crashes when I try to place an order',
-            'device_info' => 'iPhone 12, iOS 15.0',
-            'app_version' => '2.1.0',
-            'screenshots' => ['screenshot1.jpg', 'screenshot2.jpg']
+            'contact_preference' => 'email'
         ];
 
         $response = $this->postJson('/api/customer/support-tickets', $ticketData);
@@ -395,11 +411,10 @@ class CustomerStaffInteractionTest extends TestCase
                     'data' => [
                         'id',
                         'ticket_number',
-                        'category',
+                        'ticket_type',
                         'priority',
                         'subject',
                         'status',
-                        'assigned_to',
                         'created_at'
                     ]
                 ]);
@@ -407,7 +422,7 @@ class CustomerStaffInteractionTest extends TestCase
         // Verify support ticket is created
         $this->assertDatabaseHas('customer_support_tickets', [
             'customer_id' => $this->customer->id,
-            'category' => 'technical_issue',
+            'ticket_type' => 'technical',
             'priority' => 'medium',
             'status' => 'open'
         ]);
@@ -418,12 +433,15 @@ class CustomerStaffInteractionTest extends TestCase
     {
         Sanctum::actingAs($this->customerService);
 
+        // Clean up any existing feedback for this restaurant to ensure clean test
+        DB::table('customer_feedback')->where('restaurant_id', $this->restaurant->id)->delete();
+
         // Create multiple feedback entries
         $feedbacks = [
-            ['rating' => 5, 'feedback_type' => 'order_experience'],
-            ['rating' => 4, 'feedback_type' => 'delivery_speed'],
+            ['rating' => 5, 'feedback_type' => 'overall'],
+            ['rating' => 4, 'feedback_type' => 'delivery'],
             ['rating' => 3, 'feedback_type' => 'food_quality'],
-            ['rating' => 5, 'feedback_type' => 'customer_service']
+            ['rating' => 5, 'feedback_type' => 'service']
         ];
 
         foreach ($feedbacks as $feedback) {
@@ -435,8 +453,8 @@ class CustomerStaffInteractionTest extends TestCase
             ]);
         }
 
-        // Get satisfaction metrics
-        $response = $this->getJson('/api/customer-service/satisfaction-metrics');
+        // Get satisfaction metrics for this specific restaurant
+        $response = $this->getJson('/api/customer-service/satisfaction-metrics?restaurant_id=' . $this->restaurant->id);
 
         $response->assertStatus(200)
                 ->assertJsonStructure([
@@ -462,9 +480,9 @@ class CustomerStaffInteractionTest extends TestCase
         $compensationData = [
             'order_id' => $this->order->id,
             'customer_id' => $this->customer->id,
-            'compensation_type' => 'free_delivery',
+            'compensation_type' => 'discount',
             'reason' => 'delivery_delay',
-            'compensation_value' => 5.00,
+            'compensation_value' => '5.00',
             'valid_until' => now()->addDays(30),
             'terms_conditions' => 'Valid for next order only'
         ];
@@ -479,8 +497,7 @@ class CustomerStaffInteractionTest extends TestCase
                         'compensation_type',
                         'reason',
                         'compensation_value',
-                        'status',
-                        'valid_until',
+                        'approval_status',
                         'created_at'
                     ]
                 ]);
@@ -488,9 +505,9 @@ class CustomerStaffInteractionTest extends TestCase
         // Verify compensation is created
         $this->assertDatabaseHas('customer_compensations', [
             'order_id' => $this->order->id,
-            'compensation_type' => 'free_delivery',
-            'compensation_value' => 5.00,
-            'status' => 'active'
+            'compensation_type' => 'discount',
+            'compensation_value' => '5.00',
+            'approval_status' => 'pending'
         ]);
     }
 

@@ -185,7 +185,14 @@ class AuthorizationTest extends TestCase
         // Customer service can manage loyalty programs
         $this->getJson('/api/loyalty-programs')->assertStatus(200);
         $this->postJson('/api/loyalty-programs', [
-            'name' => 'Test Loyalty Program'
+            'name' => 'Test Loyalty Program',
+            'restaurant_id' => 1,
+            'type' => 'points',
+            'start_date' => now()->format('Y-m-d'),
+            'currency_name' => 'USD',
+            'points_per_currency' => 1.0,
+            'minimum_points_redemption' => 100,
+            'redemption_rate' => 0.01
         ])->assertStatus(422); // Will fail validation but shows access allowed
 
         // Customer service cannot manage restaurants
@@ -319,9 +326,9 @@ class AuthorizationTest extends TestCase
             'permissions' => $cashier->permissions,
         ]);
 
-        // Should not be able to access loyalty endpoints that require specific permission
+        // Cashiers can view loyalty programs according to the policy
         $response = $this->apiAs($cashier, 'GET', '/api/loyalty-programs');
-        $response->assertStatus(403);
+        $response->assertStatus(200);
 
         // But should be able to access order endpoints
         $response = $this->apiAs($cashier, 'GET', '/api/orders');

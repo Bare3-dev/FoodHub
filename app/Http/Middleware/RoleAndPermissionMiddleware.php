@@ -49,7 +49,7 @@ class RoleAndPermissionMiddleware
 
         // Check if user has access to any of the required roles using role hierarchy
         $hasRole = empty($requiredRoles) || collect($requiredRoles)->contains(function ($role) use ($user) {
-            return $user->canAccessRole($role);
+            return $user->hasRole($role) || $user->canAccessRole($role);
         });
         
         // Check if user has all required permissions (if any are specified)

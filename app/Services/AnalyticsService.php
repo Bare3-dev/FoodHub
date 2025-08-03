@@ -124,8 +124,8 @@ final class AnalyticsService
     private function calculateCustomerSatisfaction(User $user, Carbon $date): ?float
     {
         $feedback = CustomerFeedback::where('user_id', $user->id)
-            ->whereDate('created_at', $date)
             ->where('status', 'approved')
+            ->whereDate('created_at', $date->toDateString())
             ->get();
 
         if ($feedback->isEmpty()) {
@@ -529,7 +529,7 @@ final class AnalyticsService
             ],
             'customer_feedback' => [
                 'total_feedback' => $feedback->count(),
-                'average_rating' => round($feedback->avg('rating'), 2),
+                'average_rating' => $feedback->count() > 0 ? round($feedback->avg('rating'), 2) : 0,
                 'positive_feedback_percentage' => $feedback->count() > 0 
                     ? round(($feedback->where('rating', '>=', 4)->count() / $feedback->count()) * 100, 2)
                     : 0,

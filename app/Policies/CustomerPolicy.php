@@ -71,7 +71,7 @@ class CustomerPolicy
             return false;
         }
 
-        // Only SUPER_ADMIN and CUSTOMER_SERVICE can create customers
+        // SUPER_ADMIN and CUSTOMER_SERVICE can create customers
         return $user->isSuperAdmin() || 
                $user->hasRole('CUSTOMER_SERVICE');
     }

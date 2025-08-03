@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\LoyaltyProgramController;
 use App\Http\Controllers\Api\MenuCategoryController;
 use App\Http\Controllers\Api\MenuItemController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\OrderSpecialRequestController;
 use App\Http\Controllers\Api\RestaurantBranchController;
 use App\Http\Controllers\Api\RestaurantController;
 use App\Http\Controllers\Api\StaffController;
@@ -43,10 +44,10 @@ Route::post('/auth/mfa/verify', [App\Http\Controllers\Api\Auth\AuthController::c
     ->middleware(['https.security', 'input.sanitization', 'api.cors:private', 'advanced.rate.limit:mfa_verify']);
 
 // Public endpoints - No authentication required, permissive CORS, basic security
-Route::group(['middleware' => ['https.security', 'input.sanitization', 'api.cors:public', 'advanced.rate.limit:general', 'cache.headers']], function () {
+Route::group(['middleware' => ['https.security', 'input.sanitization', 'api.cors:public', 'advanced.rate.limit:general']], function () {
     // Public restaurant and menu browsing
-    Route::get('/restaurants', [RestaurantController::class, 'index']);
-    Route::get('/restaurants/{restaurant}', [RestaurantController::class, 'show']);
+    Route::get('/restaurants', [RestaurantController::class, 'index'])->middleware('cache.headers:restaurants');
+    Route::get('/restaurants/{restaurant}', [RestaurantController::class, 'show'])->middleware('cache.headers:restaurants');
     Route::get('/restaurant-branches', [RestaurantBranchController::class, 'index']);
     Route::get('/restaurant-branches/{restaurantBranch}', [RestaurantBranchController::class, 'show']);
     
@@ -65,6 +66,12 @@ Route::group(['middleware' => ['https.security', 'input.sanitization', 'api.cors
     // Public branch menu items
     Route::get('/restaurant-branches/{restaurantBranch}/branch-menu-items', [BranchMenuItemController::class, 'index']);
     Route::get('/restaurant-branches/{restaurantBranch}/branch-menu-items/{branchMenuItem}', [BranchMenuItemController::class, 'show']);
+    
+    // Customer feedback endpoint - accessible by customers and staff
+    Route::post('/customer/feedback', [App\Http\Controllers\Api\CustomerFeedbackController::class, 'store']);
+    
+    // Customer support tickets - accessible by customers and staff
+    Route::post('/customer/support-tickets', [CustomerController::class, 'storeSupportTicket']);
 });
 
 // Private endpoints - Authentication required, standard CORS, full security stack
@@ -80,19 +87,22 @@ Route::group(['middleware' => ['https.security', 'input.sanitization', 'auth:san
     // Rate limit monitoring
     Route::get('/rate-limit/status', [App\Http\Controllers\RateLimitController::class, 'status']);
     
-    // Order management - accessible by staff (customers use separate Customer model/auth)
-    Route::group(['middleware' => 'role.permission:CASHIER|KITCHEN_STAFF|DELIVERY_MANAGER|CUSTOMER_SERVICE'], function () {
-        // Order viewing and creation (all roles)
-        Route::get('/orders', [OrderController::class, 'index']);
-        Route::get('/orders/{order}', [OrderController::class, 'show']);
-        
-        // Order creation (customers and staff)
-        Route::post('/orders', [OrderController::class, 'store']);
-        
-        // Order updates (staff only) - will be controlled by policy/controller logic
-        Route::put('/orders/{order}', [OrderController::class, 'update']);
-        Route::patch('/orders/{order}', [OrderController::class, 'update']);
-    });
+            // Order management - accessible by staff (customers use separate Customer model/auth)
+        Route::group(['middleware' => 'role.permission:CASHIER|KITCHEN_STAFF|DELIVERY_MANAGER|CUSTOMER_SERVICE'], function () {
+            // Order viewing and creation (all roles)
+            Route::get('/orders', [OrderController::class, 'index']);
+            Route::get('/orders/{order}', [OrderController::class, 'show']);
+            
+            // Order creation (customers and staff)
+            Route::post('/orders', [OrderController::class, 'store']);
+            
+            // Order updates (staff only) - will be controlled by policy/controller logic
+            Route::put('/orders/{order}', [OrderController::class, 'update']);
+            Route::patch('/orders/{order}', [OrderController::class, 'update']);
+            
+            // Special requests for orders
+            Route::post('/orders/special-requests', [OrderSpecialRequestController::class, 'store']);
+        });
     
     // Customer loyalty programs - NOTE: Real customers use separate Customer model
     // This endpoint is for staff testing/admin purposes only
@@ -106,6 +116,7 @@ Route::group(['middleware' => ['https.security', 'input.sanitization', 'auth:san
             Route::get('/customers', [CustomerController::class, 'index']);
             Route::get('/customers/{customer}', [CustomerController::class, 'show']);
             Route::post('/customers', [CustomerController::class, 'store']); // Cashier can create customers
+            Route::put('/customers/{customer}/preferences', [CustomerController::class, 'updatePreferences']);
             // Add nested resource for customer addresses
             Route::apiResource('customers.addresses', CustomerAddressController::class);
         });
@@ -122,6 +133,16 @@ Route::group(['middleware' => ['https.security', 'input.sanitization', 'auth:san
             Route::post('/customer-loyalty-points/redeem-points', [CustomerLoyaltyPointsController::class, 'redeemPoints']);
             Route::post('/customer-loyalty-points/process-expiration', [CustomerLoyaltyPointsController::class, 'processExpiration']);
             Route::apiResource('customer-loyalty-points', CustomerLoyaltyPointsController::class);
+        });
+
+        // Customer service endpoints - staff only
+        Route::group(['middleware' => 'role.permission:CUSTOMER_SERVICE'], function () {
+            Route::post('/customer-service/complaints', [App\Http\Controllers\Api\CustomerServiceController::class, 'storeComplaint']);
+            Route::post('/customer-service/interactions', [App\Http\Controllers\Api\CustomerServiceController::class, 'storeInteraction']);
+            Route::post('/customer-service/refunds', [App\Http\Controllers\Api\CustomerServiceController::class, 'storeRefund']);
+            Route::post('/customer-service/compensations', [App\Http\Controllers\Api\CustomerServiceController::class, 'storeCompensation']);
+            Route::post('/customer-service/activities', [App\Http\Controllers\Api\CustomerServiceController::class, 'storeActivity']);
+            Route::get('/customer-service/satisfaction-metrics', [App\Http\Controllers\Api\CustomerServiceController::class, 'getSatisfactionMetrics']);
         });
     });
 });
@@ -143,7 +164,7 @@ Route::group(['middleware' => ['auth:sanctum', \App\Http\Middleware\UserStatusMi
     
     // Staff management - accessible by Super Admin, Restaurant Owners, and Branch Managers
     Route::group(['middleware' => 'role.permission:SUPER_ADMIN|RESTAURANT_OWNER|BRANCH_MANAGER'], function () {
-        Route::apiResource('staff', StaffController::class);
+        Route::apiResource('staff', StaffController::class)->parameters(['staff' => 'user']);
     });
     
     // Restaurant Owner + Super Admin endpoints
@@ -157,11 +178,13 @@ Route::group(['middleware' => ['auth:sanctum', \App\Http\Middleware\UserStatusMi
         Route::post('/restaurant-branches', [RestaurantBranchController::class, 'store']);
         Route::delete('/restaurant-branches/{restaurantBranch}', [RestaurantBranchController::class, 'destroy']);
         
-        // Driver management
+        // Staff management (for their restaurants) - Note: Full CRUD handled by SUPER_ADMIN apiResource above
+    });
+    
+    // Driver management - accessible by Super Admin, Restaurant Owners, and Delivery Managers
+    Route::group(['middleware' => 'role.permission:SUPER_ADMIN|RESTAURANT_OWNER|DELIVERY_MANAGER'], function () {
         Route::apiResource('drivers', DriverController::class)->except(['destroy']);
         Route::delete('/drivers/{driver}', [DriverController::class, 'destroy']);
-        
-        // Staff management (for their restaurants) - Note: Full CRUD handled by SUPER_ADMIN apiResource above
     });
     
     // Branch Manager + Restaurant Owner + Super Admin endpoints

@@ -525,7 +525,7 @@ class SecurityLoggingService
             'resource_id' => $resourceId,
             'changes' => $changes,
             'action_timestamp' => now()->toISOString(),
-        ]);
+        ], 'info', $resource, $resourceId);
     }
 
     /**

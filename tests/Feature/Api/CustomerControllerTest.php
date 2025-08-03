@@ -130,7 +130,7 @@ class CustomerControllerTest extends TestCase
             'password' => 'password123'
         ];
 
-        $response = $this->actingAs($this->cashier)
+        $response = $this->actingAs($this->customerService)
             ->postJson('/api/customers', $customerData);
 
         $response->assertStatus(201)

@@ -62,8 +62,8 @@ class StaffController extends Controller
         // Retrieve users (staff) with pagination and transform them using UserResource collection.
         $users = $query->paginate($perPage);
         
-        // Return the response in the format expected by tests - without data key for list
-        return response(UserResource::collection($users->items()));
+        // Return the response in the format expected by tests - with data wrapper
+        return response(['data' => UserResource::collection($users->items())]);
     }
 
     /**
@@ -77,6 +77,11 @@ class StaffController extends Controller
         // Access the validated data directly.
         $validated = $request->validated();
 
+        // Check role hierarchy if a role is specified
+        if (isset($validated['role'])) {
+            $this->authorize('createWithRole', [User::class, $validated['role']]);
+        }
+
         // Hash the password before creating the user record.
         $validated['password'] = Hash::make($validated['password']);
 
@@ -87,7 +92,7 @@ class StaffController extends Controller
 
         // Return the newly created user transformed by UserResource
         // with a 201 Created status code.
-        return response(new UserResource($user), 201);
+        return response(['data' => new UserResource($user)], 201);
     }
 
     /**
@@ -97,10 +102,8 @@ class StaffController extends Controller
     {
         $this->authorize('view', $user);
 
-        // Return the user transformed by UserResource with data key
-        return response([
-            'data' => new UserResource($user)
-        ]);
+        // Return the user transformed by UserResource
+        return response(['data' => new UserResource($user)]);
     }
 
     /**
@@ -122,10 +125,8 @@ class StaffController extends Controller
         // Update the user record with the validated data.
         $user->update($validated);
 
-        // Return the updated user transformed by UserResource with data key
-        return response([
-            'data' => new UserResource($user)
-        ]);
+        // Return the updated user transformed by UserResource
+        return response(['data' => new UserResource($user)]);
     }
 
     /**

@@ -35,6 +35,13 @@ class UpdateLoyaltyProgramRequest extends FormRequest
             'is_active' => 'boolean',
             'terms_and_conditions' => 'nullable|string',
             'rewards_info' => 'nullable|json',
+            // Add validation for fields that tests expect
+            'currency_name' => 'string|max:50|regex:/^[a-zA-Z0-9\s]+$/',
+            'points_per_currency' => 'numeric|min:0.01|max:1000',
+            'minimum_points_redemption' => 'integer|min:1',
+            'redemption_rate' => 'numeric|min:0.001|max:1',
         ];
     }
+
+
 }

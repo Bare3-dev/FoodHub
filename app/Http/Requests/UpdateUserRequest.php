@@ -70,19 +70,18 @@ class UpdateUserRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
+            $user = $this->route('staff') ?? $this->route('user');
+            $restaurantId = $this->input('restaurant_id', $user->restaurant_id ?? null);
+            $branchId = $this->input('restaurant_branch_id');
+            
             // Validate that restaurant_branch_id belongs to the specified restaurant_id
-            if ($this->has('restaurant_id') && $this->has('restaurant_branch_id')) {
-                $restaurantId = $this->input('restaurant_id');
-                $branchId = $this->input('restaurant_branch_id');
+            if ($branchId && $restaurantId) {
+                $branch = RestaurantBranch::where('id', $branchId)
+                    ->where('restaurant_id', $restaurantId)
+                    ->first();
                 
-                if ($restaurantId && $branchId) {
-                    $branch = RestaurantBranch::where('id', $branchId)
-                        ->where('restaurant_id', $restaurantId)
-                        ->first();
-                    
-                    if (!$branch) {
-                        $validator->errors()->add('restaurant_branch_id', 'The selected branch does not belong to the specified restaurant.');
-                    }
+                if (!$branch) {
+                    $validator->errors()->add('restaurant_branch_id', 'The selected branch does not belong to the specified restaurant.');
                 }
             }
         });

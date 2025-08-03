@@ -51,15 +51,18 @@ class DriverWorkingZoneController extends Controller
         // Retrieve driver working zones with pagination and transform them using DriverWorkingZoneResource collection.
         $zones = $query->with('driver')->paginate($perPage);
         
-        // Return the response in the format expected by tests - with data key
+        // Return the full paginated response with links and meta
         return response([
             'data' => DriverWorkingZoneResource::collection($zones->items()),
-            'current_page' => $zones->currentPage(),
-            'last_page' => $zones->lastPage(),
-            'per_page' => $zones->perPage(),
-            'total' => $zones->total(),
-            'from' => $zones->firstItem(),
-            'to' => $zones->lastItem(),
+            'links' => $zones->linkCollection()->toArray(),
+            'meta' => [
+                'current_page' => $zones->currentPage(),
+                'from' => $zones->firstItem(),
+                'last_page' => $zones->lastPage(),
+                'per_page' => $zones->perPage(),
+                'to' => $zones->lastItem(),
+                'total' => $zones->total(),
+            ]
         ]);
     }
 
@@ -86,7 +89,7 @@ class DriverWorkingZoneController extends Controller
 
         // Return the newly created driver working zone transformed by DriverWorkingZoneResource
         // with a 201 Created status code.
-        return response(new DriverWorkingZoneResource($driverWorkingZone->load('driver')), 201);
+        return response(['data' => new DriverWorkingZoneResource($driverWorkingZone->load('driver'))], 201);
     }
 
     /**
@@ -96,7 +99,7 @@ class DriverWorkingZoneController extends Controller
     {
         // Return the specified driver working zone transformed by DriverWorkingZoneResource.
         // Laravel's route model binding automatically retrieves the driver working zone.
-        return response(new DriverWorkingZoneResource($driverWorkingZone->load('driver')));
+        return response(['data' => new DriverWorkingZoneResource($driverWorkingZone->load('driver'))]);
     }
 
     /**

@@ -93,6 +93,17 @@ class Handler extends ExceptionHandler
             }
         });
 
+        // Handle invalid route model binding for API requests
+        $this->renderable(function (\Illuminate\Database\QueryException $e, $request) {
+            if ($request->is('api/*') && str_contains($e->getMessage(), 'invalid input syntax for type bigint')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The requested resource was not found.',
+                    'errors' => []
+                ], 404);
+            }
+        });
+
         // Handle model not found exceptions
         $this->renderable(function (\Illuminate\Database\Eloquent\ModelNotFoundException $e, $request) {
             return response()->json([

@@ -201,7 +201,7 @@ class DriverControllerTest extends TestCase
             ])
         ];
 
-        $response = $this->actingAs($this->restaurantOwner)
+        $response = $this->actingAs($this->deliveryManager)
             ->postJson('/api/drivers', $driverData);
 
         $response->assertStatus(201)
@@ -247,7 +247,7 @@ class DriverControllerTest extends TestCase
             'vehicle_type' => '', // Required
         ];
 
-        $response = $this->actingAs($this->restaurantOwner)
+        $response = $this->actingAs($this->deliveryManager)
             ->postJson('/api/drivers', $invalidData);
 
         $response->assertStatus(422)
@@ -548,11 +548,11 @@ class DriverControllerTest extends TestCase
     public function it_handles_driver_documents()
     {
         $driver = $this->createDriver([
-            'documents' => json_encode([
+            'documents' => [
                 'license' => 'license_url',
                 'insurance' => 'insurance_url',
                 'vehicle_registration' => 'registration_url'
-            ])
+            ]
         ]);
 
         $response = $this->actingAs($this->restaurantOwner)

@@ -24,34 +24,21 @@ class StoreLoyaltyProgramRequest extends FormRequest
     {
         return [
             'restaurant_id' => 'required|exists:restaurants,id',
-            'name' => 'required|string|max:255',
+            'name' => 'required|string|max:255|unique:loyalty_programs,name,NULL,id,restaurant_id,' . $this->input('restaurant_id'),
             'description' => 'nullable|string',
             'type' => 'required|string|in:points,stamps,tiers,challenges',
-            'starts_at' => 'nullable|date',
-            'ends_at' => 'nullable|date|after_or_equal:starts_at',
+            'start_date' => 'required|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
             'is_active' => 'boolean',
             'terms_and_conditions' => 'nullable|string',
             'rewards_info' => 'nullable|json',
             // Add validation for fields that tests expect
-            'currency_name' => 'nullable|string|max:50|regex:/^[a-zA-Z0-9\s]+$/',
-            'points_per_currency' => 'nullable|numeric|min:0.01|max:1000',
-            'minimum_points_redemption' => 'nullable|integer|min:1',
-            'redemption_rate' => 'nullable|numeric|min:0.001|max:1',
+            'currency_name' => 'required|string|max:50|regex:/^[a-zA-Z0-9\s]+$/',
+            'points_per_currency' => 'required|numeric|min:0.01|max:1000',
+            'minimum_points_redemption' => 'required|integer|min:1',
+            'redemption_rate' => 'required|numeric|min:0.001|max:1',
         ];
     }
 
-    /**
-     * Prepare the data for validation.
-     */
-    protected function prepareForValidation(): void
-    {
-        // Map the test field names to actual database field names
-        $this->merge([
-            'points_per_dollar' => $this->input('points_per_currency'),
-            'dollar_per_point' => $this->input('redemption_rate'),
-            'minimum_spend_for_points' => $this->input('minimum_points_redemption'),
-            'start_date' => $this->input('starts_at'),
-            'end_date' => $this->input('ends_at'),
-        ]);
-    }
+
 }

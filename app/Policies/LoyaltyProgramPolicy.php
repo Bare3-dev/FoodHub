@@ -23,18 +23,32 @@ class LoyaltyProgramPolicy
             return false;
         }
 
-        // Check for specific permissions first
-        if ($user->hasPermission('loyalty-program:view') || 
-            $user->hasPermission('loyalty-program:manage')) {
+        // Super admin can view any loyalty program
+        if ($user->isSuperAdmin()) {
             return true;
         }
 
-        // Fall back to role-based checks
-        return $user->isSuperAdmin() || 
-               $user->hasRole('RESTAURANT_OWNER') ||
-               $user->hasRole('BRANCH_MANAGER') ||
-               $user->hasRole('CASHIER') ||
-               $user->hasRole('CUSTOMER_SERVICE');
+        // Restaurant owners can view loyalty programs in their restaurants
+        if ($user->hasRole('RESTAURANT_OWNER')) {
+            return true;
+        }
+
+        // Branch managers can view loyalty programs in their restaurant
+        if ($user->hasRole('BRANCH_MANAGER')) {
+            return true;
+        }
+
+        // Customer service can view any loyalty program
+        if ($user->hasRole('CUSTOMER_SERVICE')) {
+            return true;
+        }
+
+        // Cashiers can view loyalty programs in their restaurant
+        if ($user->hasRole('CASHIER')) {
+            return true;
+        }
+
+        return false;
     }
 
     /**

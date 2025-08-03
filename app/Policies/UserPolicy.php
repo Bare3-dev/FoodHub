@@ -96,6 +96,39 @@ final class UserPolicy
     }
 
     /**
+     * Determine whether the user can create a staff member with a specific role.
+     */
+    public function createWithRole(?User $user, string $targetRole): bool
+    {
+        // Handle null user
+        if (!$user) {
+            return false;
+        }
+
+        // Super admin can create any staff with any role
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        // Check role hierarchy - users can only create staff with roles at or below their level
+        if (!$user->canAccessRole($targetRole)) {
+            return false;
+        }
+
+        // Restaurant owners can create staff for their restaurants
+        if ($user->isRestaurantOwner()) {
+            return true;
+        }
+
+        // Branch managers can create staff for their branches
+        if ($user->hasRole('BRANCH_MANAGER')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Determine whether the user can update the model.
      */
     public function update(?User $user, User $model): bool

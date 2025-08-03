@@ -27,9 +27,9 @@ class LoyaltyProgramController extends Controller
         // Build query with filters
         $query = LoyaltyProgram::query();
 
-        // Filter by status if provided
-        if ($request->has('status')) {
-            $query->where('status', $request->input('status'));
+        // Filter by active status if provided
+        if ($request->has('is_active')) {
+            $query->where('is_active', $request->boolean('is_active'));
         }
 
         // Filter by restaurant if provided
@@ -38,7 +38,7 @@ class LoyaltyProgramController extends Controller
         }
 
         // Retrieve loyalty programs with pagination and transform them using LoyaltyProgramResource collection.
-        $loyaltyPrograms = $query->paginate($perPage);
+        $loyaltyPrograms = $query->with('restaurant')->paginate($perPage);
         
         // Return the standard Laravel pagination response format with links and meta
         return LoyaltyProgramResource::collection($loyaltyPrograms)->response();
@@ -72,7 +72,7 @@ class LoyaltyProgramController extends Controller
 
         // Return the specified loyalty program transformed by LoyaltyProgramResource.
         // Laravel's route model binding automatically retrieves the loyalty program.
-        return (new LoyaltyProgramResource($loyaltyProgram))->response();
+        return (new LoyaltyProgramResource($loyaltyProgram->load('restaurant')))->response();
     }
 
     /**
@@ -91,6 +91,16 @@ class LoyaltyProgramController extends Controller
 
         // Return the updated loyalty program transformed by LoyaltyProgramResource.
         return (new LoyaltyProgramResource($loyaltyProgram))->response();
+    }
+
+    /**
+     * Handle invalid route model binding.
+     */
+    public function handleInvalidId($id): JsonResponse
+    {
+        return response()->json([
+            'message' => 'The specified loyalty program could not be found.',
+        ], 404);
     }
 
     /**

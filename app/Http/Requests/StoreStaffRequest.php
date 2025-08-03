@@ -13,7 +13,33 @@ class StoreStaffRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return Auth::check() && Auth::user()->can('create', \App\Models\User::class);
+        if (!Auth::check()) {
+            return false;
+        }
+
+        $user = Auth::user();
+        
+        // Check if user can create users in general
+        if (!$user->can('create', \App\Models\User::class)) {
+            return false;
+        }
+
+        // Check if the requested role is allowed for this user
+        $requestedRole = $this->input('role');
+        if ($requestedRole && !in_array($requestedRole, $this->getAllowedRoles($user))) {
+            // Allow validation to happen first, then authorization will be checked in controller
+            return true;
+        }
+
+        return true;
+    }
+
+    /**
+     * Handle a failed authorization attempt.
+     */
+    protected function failedAuthorization()
+    {
+        throw new \Illuminate\Auth\Access\AuthorizationException('This action is unauthorized.');
     }
 
     /**
@@ -23,18 +49,29 @@ class StoreStaffRequest extends FormRequest
      */
     public function rules(): array
     {
-        $user = Auth::user();
-        $allowedRoles = $this->getAllowedRoles($user);
-
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')],
-            'password' => ['required', 'string', 'min:8'],
-            'role' => ['required', 'string', Rule::in($allowedRoles)],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'role' => ['required', 'string', 'in:SUPER_ADMIN,RESTAURANT_OWNER,BRANCH_MANAGER,CASHIER,KITCHEN_STAFF,DELIVERY_MANAGER,CUSTOMER_SERVICE'],
             'restaurant_id' => ['nullable', 'exists:restaurants,id'],
-            'restaurant_branch_id' => ['nullable', 'exists:restaurant_branches,id'],
+            'restaurant_branch_id' => [
+                'nullable', 
+                'exists:restaurant_branches,id',
+                function ($attribute, $value, $fail) {
+                    $restaurantId = $this->input('restaurant_id');
+                    if ($value && $restaurantId) {
+                        $branch = \App\Models\RestaurantBranch::find($value);
+                        if ($branch && $branch->restaurant_id !== (int) $restaurantId) {
+                            $fail('The selected branch does not belong to the specified restaurant.');
+                        }
+                    }
+                }
+            ],
             'permissions' => ['nullable', 'array'],
             'permissions.*' => ['string', 'max:255'],
+            'status' => ['nullable', 'string', 'in:active,inactive,suspended'],
+            'phone' => ['nullable', 'string', 'max:20'],
         ];
     }
 
@@ -102,7 +139,6 @@ class StoreStaffRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'role.in' => 'You do not have permission to create users with this role.',
             'restaurant_id.required_if' => 'Restaurant ID is required for restaurant owners.',
             'restaurant_branch_id.required_if' => 'Branch ID is required for branch-specific roles.',
         ];
