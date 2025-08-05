@@ -2,20 +2,75 @@
 
 A. Loyalty system:
 1. Digital Stamp Cards System (Missing entirely)
-According to the file, this is a core loyalty feature:
 
-checkStampCardCompletion() - you need this
+contains:
 Stamp cards for different categories (beverages, desserts, mains)
 Visual progress tracking
 Reward processing when cards are completed
+how to implement: 
 
-2. Interactive Spin Wheel (Missing entirely)
-Major engagement feature from the file:
+🎯 1. Digital Stamp Cards System
+- checkStampCardCompletion(StampCard $card): bool
+Purpose: Check if a stamp card is ready for reward redemption
+Input: StampCard model
+Logic: Compare current_stamps with total_stamps_required
+Return: true if card is complete, false if not
+Side effects: None (read-only check)
+
+- addStampToCard(Order $order): void (Support function)
+Purpose: Add stamp(s) to eligible cards when order is completed
+Input: Completed order
+Logic:
+Find active stamp cards for customer
+Check if order items qualify for each card type
+Add stamps based on order value/items
+Check completion after adding
+Side effects: Updates stamp card progress, triggers rewards if complete
+
+- Card Types from FoodHub Requirements:
+General: All orders qualify
+Beverages: Only drink orders
+Desserts: Only dessert orders
+Mains: Only main course orders
+Healthy: Only healthy option orders
+
+2. Interactive Spin Wheel
+Major features:
 
 processSpinWheelResult() - you need this
 Daily free spins + paid spins with points
 Prize distribution system
 Probability management based on customer behavior
+
+implementation steps:
+
+- processSpinWheelResult(Customer $customer): SpinResult
+Purpose: Handle customer spin wheel interaction
+Input: Customer model
+Logic:
+Validate customer has available spins (free daily + purchased)
+Calculate probability based on customer behavior/tier
+Generate random result based on weighted probabilities
+Award prize (discount, free item, points, etc.)
+Deduct spin from customer balance
+Return: SpinResult object with prize details
+Side effects: Updates customer spins, adds rewards to account
+
+- validateSpinWheel(Customer $customer): bool (Support function)
+Purpose: Check if customer can spin the wheel
+Input: Customer model
+Logic:
+Check daily free spins available
+Check purchased spins balance
+Verify no cooldown period active
+Return: true if can spin, false if not
+
+details:
+Spin Wheel Features from FoodHub:
+Daily free spins: 1-2 per day based on tier
+Purchased spins: Buy with loyalty points
+Smart probabilities: Higher-tier customers get better odds
+Prize types: Discounts, free items, bonus points, free delivery
 
 3. Personalized Challenges (Missing entirely)
 AI-driven engagement feature:

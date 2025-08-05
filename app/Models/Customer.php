@@ -87,6 +87,30 @@ final class Customer extends Authenticatable
     }
 
     /**
+     * Get the customer's loyalty points.
+     */
+    public function loyaltyPoints(): HasMany
+    {
+        return $this->hasMany(CustomerLoyaltyPoint::class);
+    }
+
+    /**
+     * Get the customer's spin wheel data.
+     */
+    public function customerSpins(): HasMany
+    {
+        return $this->hasMany(CustomerSpin::class);
+    }
+
+    /**
+     * Get the customer's spin results.
+     */
+    public function spinResults(): HasMany
+    {
+        return $this->hasMany(SpinResult::class);
+    }
+
+    /**
      * Get the customer's full name.
      */
     public function getFullNameAttribute(): string
@@ -148,5 +172,34 @@ final class Customer extends Authenticatable
     public function isSuperAdmin(): bool
     {
         return false;
+    }
+
+    /**
+     * Check if the customer can access a specific role (customers have limited access).
+     */
+    public function canAccessRole(string $role): bool
+    {
+        // Customers can only access their own role (CUSTOMER)
+        return $role === 'CUSTOMER';
+    }
+
+    /**
+     * Get the customer's role (always CUSTOMER).
+     */
+    public function getRoleAttribute(): string
+    {
+        return 'CUSTOMER';
+    }
+
+    /**
+     * Get the customer's permissions.
+     */
+    public function getPermissionsAttribute(): array
+    {
+        return [
+            'order:cancel-own',
+            'order:view-own',
+            'order:create'
+        ];
     }
 }

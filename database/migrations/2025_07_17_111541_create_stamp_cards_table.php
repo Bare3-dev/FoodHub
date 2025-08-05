@@ -15,15 +15,21 @@ return new class extends Migration
             $table->id();
             $table->foreignId('loyalty_program_id')->constrained()->onDelete('cascade');
             $table->foreignId('customer_id')->constrained()->onDelete('cascade');
+            $table->enum('card_type', ['general', 'beverages', 'desserts', 'mains', 'healthy'])->default('general');
             $table->integer('stamps_earned')->default(0);
             $table->integer('stamps_required')->default(10);
             $table->boolean('is_completed')->default(false);
+            $table->boolean('is_active')->default(true);
             $table->timestamp('completed_at')->nullable();
+            $table->string('reward_description')->nullable();
+            $table->decimal('reward_value', 8, 2)->nullable();
             $table->timestamps();
             
             // Indexes for performance
             $table->index(['loyalty_program_id', 'customer_id']);
             $table->index(['is_completed']);
+            $table->index(['is_active']);
+            $table->index(['card_type']);
             $table->index('completed_at');
         });
     }

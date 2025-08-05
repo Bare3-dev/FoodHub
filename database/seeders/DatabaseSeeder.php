@@ -25,6 +25,9 @@ final class DatabaseSeeder extends Seeder
             DriverSeeder::class,
             LoyaltyProgramSeeder::class,
             OrderSeeder::class,
+            CustomerComplaintSeeder::class,
+            CustomerSupportTicketSeeder::class,
+            CustomerServiceSeeder::class,
         ]);
 
         $this->command->info('✅ FoodHub Database Seeding Completed Successfully!');

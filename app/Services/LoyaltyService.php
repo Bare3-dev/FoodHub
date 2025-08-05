@@ -8,10 +8,18 @@ use App\Models\LoyaltyProgram;
 use App\Models\LoyaltyTier;
 use App\Models\CustomerLoyaltyPoint;
 use App\Models\LoyaltyPointsHistory;
+use App\Services\StampCardService;
 use Illuminate\Support\Facades\DB;
 
 final class LoyaltyService
 {
+    private StampCardService $stampCardService;
+
+    public function __construct(StampCardService $stampCardService)
+    {
+        $this->stampCardService = $stampCardService;
+    }
+
     /**
      * Calculate loyalty points earned for an order
      */
@@ -139,6 +147,9 @@ final class LoyaltyService
                     ]
                 ]);
             }
+
+            // Process stamp cards for the order
+            $this->stampCardService->addStampToCard($order);
         });
     }
 
@@ -368,5 +379,21 @@ final class LoyaltyService
                 ]);
             });
         }
+    }
+
+    /**
+     * Check if a stamp card is completed
+     */
+    public function checkStampCardCompletion($card): bool
+    {
+        return $this->stampCardService->checkStampCardCompletion($card);
+    }
+
+    /**
+     * Add stamps to cards for an order
+     */
+    public function addStampToCard(Order $order): void
+    {
+        $this->stampCardService->addStampToCard($order);
     }
 } 

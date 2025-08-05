@@ -13,7 +13,9 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderSpecialRequestController;
 use App\Http\Controllers\Api\RestaurantBranchController;
 use App\Http\Controllers\Api\RestaurantController;
+use App\Http\Controllers\Api\SpinWheelController;
 use App\Http\Controllers\Api\StaffController;
+use App\Http\Controllers\Api\StampCardController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -87,6 +89,16 @@ Route::group(['middleware' => ['https.security', 'input.sanitization', 'auth:san
     // Rate limit monitoring
     Route::get('/rate-limit/status', [App\Http\Controllers\RateLimitController::class, 'status']);
     
+    // Spin wheel management - accessible by customers and staff
+    Route::group(['middleware' => 'role.permission:CUSTOMER|CASHIER|CUSTOMER_SERVICE'], function () {
+        Route::get('/spin-wheel/status', [SpinWheelController::class, 'getStatus']);
+        Route::post('/spin-wheel/spin', [SpinWheelController::class, 'spin']);
+        Route::post('/spin-wheel/buy-spins', [SpinWheelController::class, 'buySpins']);
+        Route::get('/spin-wheel/redeemable-prizes', [SpinWheelController::class, 'getRedeemablePrizes']);
+        Route::post('/spin-wheel/redeem-prize', [SpinWheelController::class, 'redeemPrize']);
+        Route::get('/spin-wheel/configuration', [SpinWheelController::class, 'getConfiguration']);
+    });
+    
             // Order management - accessible by staff (customers use separate Customer model/auth)
         Route::group(['middleware' => 'role.permission:CASHIER|KITCHEN_STAFF|DELIVERY_MANAGER|CUSTOMER_SERVICE'], function () {
             // Order viewing and creation (all roles)
@@ -133,6 +145,13 @@ Route::group(['middleware' => ['https.security', 'input.sanitization', 'auth:san
             Route::post('/customer-loyalty-points/redeem-points', [CustomerLoyaltyPointsController::class, 'redeemPoints']);
             Route::post('/customer-loyalty-points/process-expiration', [CustomerLoyaltyPointsController::class, 'processExpiration']);
             Route::apiResource('customer-loyalty-points', CustomerLoyaltyPointsController::class);
+            
+            // Stamp card management
+            Route::get('/stamp-cards', [StampCardController::class, 'index']);
+            Route::get('/stamp-cards/{stampCard}', [StampCardController::class, 'show']);
+            Route::post('/stamp-cards', [StampCardController::class, 'store']);
+            Route::get('/stamp-cards/types', [StampCardController::class, 'getCardTypes']);
+            Route::get('/stamp-cards/statistics', [StampCardController::class, 'statistics']);
         });
 
         // Customer service endpoints - staff only
