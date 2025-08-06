@@ -24,6 +24,7 @@ final class DatabaseSeeder extends Seeder
             MenuSeeder::class,
             DriverSeeder::class,
             LoyaltyProgramSeeder::class,
+            RestaurantConfigSeeder::class,
             OrderSeeder::class,
             CustomerComplaintSeeder::class,
             CustomerSupportTicketSeeder::class,

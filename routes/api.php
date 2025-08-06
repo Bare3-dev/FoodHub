@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\BranchMenuItemController;
+use App\Http\Controllers\Api\ConfigurationController;
 use App\Http\Controllers\Api\CustomerAddressController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\CustomerLoyaltyPointsController;
@@ -14,8 +15,11 @@ use App\Http\Controllers\Api\OrderSpecialRequestController;
 use App\Http\Controllers\Api\RestaurantBranchController;
 use App\Http\Controllers\Api\RestaurantController;
 use App\Http\Controllers\Api\SpinWheelController;
+use App\Http\Controllers\Api\FileUploadController;
+use App\Http\Controllers\Api\PricingController;
 use App\Http\Controllers\Api\StaffController;
 use App\Http\Controllers\Api\StampCardController;
+use App\Http\Controllers\Api\WebhookController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -77,6 +81,16 @@ Route::group(['middleware' => ['https.security', 'input.sanitization', 'api.cors
 });
 
 // Private endpoints - Authentication required, standard CORS, full security stack
+// Spin wheel management - accessible by customers and staff
+Route::group(['middleware' => ['auth:sanctum', 'api.cors:private']], function () {
+    Route::get('/spin-wheel/status', [SpinWheelController::class, 'getStatus']);
+    Route::post('/spin-wheel/spin', [SpinWheelController::class, 'spin']);
+    Route::post('/spin-wheel/buy-spins', [SpinWheelController::class, 'buySpins']);
+    Route::get('/spin-wheel/redeemable-prizes', [SpinWheelController::class, 'getRedeemablePrizes']);
+    Route::post('/spin-wheel/redeem-prize', [SpinWheelController::class, 'redeemPrize']);
+    Route::get('/spin-wheel/configuration', [SpinWheelController::class, 'getConfiguration']);
+});
+
 Route::group(['middleware' => ['https.security', 'input.sanitization', 'auth:sanctum', \App\Http\Middleware\UserStatusMiddleware::class, 'api.cors:private', 'advanced.rate.limit:general']], function () {
     // User info
     Route::get('/user', function (Request $request) {
@@ -88,16 +102,6 @@ Route::group(['middleware' => ['https.security', 'input.sanitization', 'auth:san
     
     // Rate limit monitoring
     Route::get('/rate-limit/status', [App\Http\Controllers\RateLimitController::class, 'status']);
-    
-    // Spin wheel management - accessible by customers and staff
-    Route::group(['middleware' => 'role.permission:CUSTOMER|CASHIER|CUSTOMER_SERVICE'], function () {
-        Route::get('/spin-wheel/status', [SpinWheelController::class, 'getStatus']);
-        Route::post('/spin-wheel/spin', [SpinWheelController::class, 'spin']);
-        Route::post('/spin-wheel/buy-spins', [SpinWheelController::class, 'buySpins']);
-        Route::get('/spin-wheel/redeemable-prizes', [SpinWheelController::class, 'getRedeemablePrizes']);
-        Route::post('/spin-wheel/redeem-prize', [SpinWheelController::class, 'redeemPrize']);
-        Route::get('/spin-wheel/configuration', [SpinWheelController::class, 'getConfiguration']);
-    });
     
             // Order management - accessible by staff (customers use separate Customer model/auth)
         Route::group(['middleware' => 'role.permission:CASHIER|KITCHEN_STAFF|DELIVERY_MANAGER|CUSTOMER_SERVICE'], function () {
@@ -197,6 +201,13 @@ Route::group(['middleware' => ['auth:sanctum', \App\Http\Middleware\UserStatusMi
         Route::post('/restaurant-branches', [RestaurantBranchController::class, 'store']);
         Route::delete('/restaurant-branches/{restaurantBranch}', [RestaurantBranchController::class, 'destroy']);
         
+        // Configuration management
+        Route::get('/restaurants/{restaurant}/config', [ConfigurationController::class, 'getRestaurantConfig']);
+        Route::post('/restaurants/{restaurant}/config', [ConfigurationController::class, 'setRestaurantConfig']);
+        Route::get('/restaurant-branches/{restaurantBranch}/config', [ConfigurationController::class, 'getBranchConfig']);
+        Route::post('/restaurants/{restaurant}/operating-hours', [ConfigurationController::class, 'updateOperatingHours']);
+        Route::post('/restaurants/{restaurant}/loyalty-program', [ConfigurationController::class, 'configureLoyaltyProgram']);
+        
         // Staff management (for their restaurants) - Note: Full CRUD handled by SUPER_ADMIN apiResource above
     });
     
@@ -235,6 +246,13 @@ Route::group(['middleware' => ['auth:sanctum', \App\Http\Middleware\UserStatusMi
         Route::apiResource('restaurants.menu-categories', MenuCategoryController::class)->except(['index', 'show']);
         Route::apiResource('restaurants.menu-items', MenuItemController::class)->except(['index', 'show']);
         
+        // File upload management
+        Route::post('/menu-items/{menuItem}/upload-image', [FileUploadController::class, 'uploadMenuItemImage']);
+        Route::post('/restaurants/{restaurant}/upload-logo', [FileUploadController::class, 'uploadRestaurantLogo']);
+        Route::post('/users/{user}/upload-avatar', [FileUploadController::class, 'uploadUserAvatar']);
+        Route::delete('/files/delete', [FileUploadController::class, 'deleteFile'])->name('api.files.delete');
+        Route::get('/files/status', [FileUploadController::class, 'getUploadStatus'])->name('api.files.status');
+        
         // Staff management for branch - Note: Full CRUD handled by SUPER_ADMIN apiResource above
     });
     
@@ -261,6 +279,24 @@ Route::group(['middleware' => ['auth:sanctum', \App\Http\Middleware\UserStatusMi
         Route::patch('/loyalty-programs/{loyaltyProgram}', [LoyaltyProgramController::class, 'update']);
         Route::delete('/loyalty-programs/{loyaltyProgram}', [LoyaltyProgramController::class, 'destroy']);
     });
+    
+    // Pricing endpoints - accessible by staff and restaurant owners
+    Route::group(['middleware' => 'role.permission:SUPER_ADMIN|RESTAURANT_OWNER|BRANCH_MANAGER|CUSTOMER_SERVICE|CASHIER|KITCHEN_STAFF'], function () {
+        // Individual pricing calculations
+        Route::post('/pricing/calculate-tax', [PricingController::class, 'calculateTax']);
+        Route::post('/pricing/calculate-delivery-fee', [PricingController::class, 'calculateDeliveryFee']);
+        Route::post('/pricing/apply-discounts', [PricingController::class, 'applyDiscounts']);
+        Route::post('/pricing/calculate-item-price', [PricingController::class, 'calculateItemPrice']);
+        Route::post('/pricing/validate-coupon', [PricingController::class, 'validateCoupon']);
+        
+        // Complete pricing calculation
+        Route::post('/pricing/calculate-complete', [PricingController::class, 'calculateCompletePricing']);
+    });
+    
+    // Pricing reports - accessible by restaurant owners and super admins
+    Route::group(['middleware' => 'role.permission:SUPER_ADMIN|RESTAURANT_OWNER'], function () {
+        Route::post('/pricing/generate-report', [PricingController::class, 'generatePricingReport']);
+    });
 });
 
 // Minimal test route for cache header debugging
@@ -268,6 +304,26 @@ Route::get('/cache-test', function() {
     $response = response()->json(['test' => true, 'time' => now()]);
     $response->headers->set('Cache-Control', 'public, max-age=3600');
     return $response;
+});
+
+// Test route
+Route::get('/test', function() {
+    return response()->json(['message' => 'Test route working']);
+});
+
+// Simple webhook test route
+Route::post('/webhook-test', function() {
+    return response()->json(['status' => 'success', 'message' => 'Webhook test working']);
+});
+
+// Webhook endpoints - No authentication required, strict security
+Route::post('/webhook/payment/{gateway}', [WebhookController::class, 'handlePaymentWebhook']);
+
+// Webhook management endpoints (require authentication)
+Route::group(['middleware' => 'auth:sanctum'], function () {
+    Route::post('/webhook/register', [WebhookController::class, 'registerWebhook']);
+    Route::get('/webhook/statistics', [WebhookController::class, 'getWebhookStatistics']);
+    Route::get('/webhook/logs', [WebhookController::class, 'getWebhookLogs']);
 });
 
 

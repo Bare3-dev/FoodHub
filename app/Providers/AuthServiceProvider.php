@@ -23,6 +23,7 @@ class AuthServiceProvider extends ServiceProvider
         \App\Models\Order::class => \App\Policies\OrderPolicy::class,
         \App\Models\LoyaltyProgram::class => \App\Policies\LoyaltyProgramPolicy::class,
         \App\Models\User::class => \App\Policies\UserPolicy::class, // For staff management
+        \App\Models\RestaurantConfig::class => \App\Policies\RestaurantConfigPolicy::class,
     ];
 
     /**

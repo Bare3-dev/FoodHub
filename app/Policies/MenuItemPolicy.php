@@ -73,4 +73,14 @@ class MenuItemPolicy
     {
         return $user->isSuperAdmin();
     }
+
+    /**
+     * Determine whether the user can upload images for the model.
+     */
+    public function upload(User $user, MenuItem $menuItem): bool
+    {
+        return $user->isSuperAdmin() || 
+               ($user->hasRole('RESTAURANT_OWNER') && $user->restaurant_id === $menuItem->restaurant_id) ||
+               ($user->hasRole('BRANCH_MANAGER') && $user->branch && $user->branch->restaurant_id === $menuItem->restaurant_id);
+    }
 }

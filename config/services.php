@@ -35,4 +35,42 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Payment Gateway Services
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for various payment gateways used in the application.
+    | Each gateway has its own API credentials and webhook settings.
+    |
+    */
+
+    'mada' => [
+        'merchant_id' => env('MADA_MERCHANT_ID'),
+        'api_key' => env('MADA_API_KEY'),
+        'webhook_secret' => env('MADA_WEBHOOK_SECRET'),
+        'environment' => env('MADA_ENVIRONMENT', 'sandbox'),
+    ],
+
+    'stc_pay' => [
+        'merchant_id' => env('STC_PAY_MERCHANT_ID'),
+        'api_key' => env('STC_PAY_API_KEY'),
+        'merchant_key' => env('STC_PAY_MERCHANT_KEY'),
+        'environment' => env('STC_PAY_ENVIRONMENT', 'sandbox'),
+    ],
+
+    'apple_pay' => [
+        'merchant_id' => env('APPLE_PAY_MERCHANT_ID'),
+        'api_key' => env('APPLE_PAY_API_KEY'),
+        'webhook_secret' => env('APPLE_PAY_WEBHOOK_SECRET'),
+        'environment' => env('APPLE_PAY_ENVIRONMENT', 'sandbox'),
+    ],
+
+    'google_pay' => [
+        'merchant_id' => env('GOOGLE_PAY_MERCHANT_ID'),
+        'api_key' => env('GOOGLE_PAY_API_KEY'),
+        'webhook_secret' => env('GOOGLE_PAY_WEBHOOK_SECRET'),
+        'environment' => env('GOOGLE_PAY_ENVIRONMENT', 'sandbox'),
+    ],
+
 ];

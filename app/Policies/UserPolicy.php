@@ -247,4 +247,37 @@ final class UserPolicy
 
         return $user->restaurant_branch_id === $target->restaurant_branch_id;
     }
+
+    /**
+     * Determine whether the user can upload avatar for the model.
+     */
+    public function upload(?User $user, User $model): bool
+    {
+        // Handle null user
+        if (!$user) {
+            return false;
+        }
+
+        // Super admin can upload avatar for any user
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        // Users can upload their own avatar
+        if ($user->id === $model->id) {
+            return true;
+        }
+
+        // Restaurant owners can upload avatar for staff in their restaurants
+        if ($user->isRestaurantOwner() && $this->belongsToSameRestaurant($user, $model)) {
+            return true;
+        }
+
+        // Branch managers can upload avatar for staff in their branches
+        if ($user->hasRole('BRANCH_MANAGER') && $this->belongsToSameBranch($user, $model)) {
+            return true;
+        }
+
+        return false;
+    }
 }

@@ -24,12 +24,34 @@ final class SpinWheelController extends Controller
     ) {}
 
     /**
+     * Get the authenticated customer or user.
+     */
+    private function getAuthenticatedCustomer()
+    {
+        $user = Auth::user();
+        
+        // If it's a Customer model, return it directly
+        if ($user instanceof \App\Models\Customer) {
+            return $user;
+        }
+        
+        // If it's a User model, try to find the associated customer
+        if ($user instanceof \App\Models\User) {
+            // For now, we'll assume the user is a customer
+            // In a real application, you might have a relationship between User and Customer
+            return \App\Models\Customer::where('email', $user->email)->first();
+        }
+        
+        return null;
+    }
+
+    /**
      * Get customer's spin wheel status.
      */
     public function getStatus(Request $request): JsonResponse
     {
         try {
-            $customer = Auth::user();
+            $customer = $this->getAuthenticatedCustomer();
             
             if (!$customer) {
                 return $this->errorResponse('Unauthorized', 'UNAUTHORIZED', 401);
@@ -49,7 +71,7 @@ final class SpinWheelController extends Controller
     public function spin(Request $request): JsonResponse
     {
         try {
-            $customer = Auth::user();
+            $customer = $this->getAuthenticatedCustomer();
             
             if (!$customer) {
                 return $this->errorResponse('Unauthorized', 'UNAUTHORIZED', 401);
@@ -71,12 +93,12 @@ final class SpinWheelController extends Controller
                     'type' => $spinResult->prize_type,
                     'value' => $spinResult->prize_value,
                     'display_value' => $spinResult->display_value,
-                                    'description' => $spinResult->prize_description,
-            ],
-        ], 'Spin completed successfully');
-    } catch (\Exception $e) {
-        return $this->errorResponse('Failed to spin the wheel: ' . $e->getMessage(), 'SPIN_ERROR', 500);
-    }
+                    'description' => $spinResult->prize_description,
+                ],
+            ], 'Spin completed successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to spin the wheel: ' . $e->getMessage(), 'SPIN_ERROR', 500);
+        }
     }
 
     /**
@@ -85,7 +107,7 @@ final class SpinWheelController extends Controller
     public function buySpins(BuySpinsRequest $request): JsonResponse
     {
         try {
-            $customer = Auth::user();
+            $customer = $this->getAuthenticatedCustomer();
             
             if (!$customer) {
                 return $this->errorResponse('Unauthorized', 'UNAUTHORIZED', 401);
@@ -120,7 +142,7 @@ final class SpinWheelController extends Controller
     public function getRedeemablePrizes(Request $request): JsonResponse
     {
         try {
-            $customer = Auth::user();
+            $customer = $this->getAuthenticatedCustomer();
             
             if (!$customer) {
                 return $this->errorResponse('Unauthorized', 'UNAUTHORIZED', 401);
@@ -143,7 +165,7 @@ final class SpinWheelController extends Controller
     public function redeemPrize(RedeemPrizeRequest $request): JsonResponse
     {
         try {
-            $customer = Auth::user();
+            $customer = $this->getAuthenticatedCustomer();
             
             if (!$customer) {
                 return $this->errorResponse('Unauthorized', 'UNAUTHORIZED', 401);

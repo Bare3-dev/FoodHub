@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Carbon\Carbon;
 use App\Models\SecurityLog;
 use App\Models\User;
+use App\Models\Order;
+use App\Models\Payment;
 
 /**
  * Security Incident Logging Service
@@ -579,5 +581,272 @@ class SecurityLoggingService
             ->orderBy('created_at', 'desc')
             ->limit($limit)
             ->get();
+    }
+
+    /**
+     * Detect suspicious activity for a user and return detection result
+     */
+    public function detectSuspiciousActivity(User $user): bool
+    {
+        $suspiciousIndicators = 0;
+        $threshold = 3; // Number of indicators needed to trigger suspicion
+
+        // Check for multiple failed login attempts
+        $recentFailures = SecurityLog::where('user_id', $user->id)
+            ->where('event_type', 'authentication_failure')
+            ->where('created_at', '>=', now()->subHours(1))
+            ->count();
+
+        if ($recentFailures >= 5) {
+            $suspiciousIndicators++;
+        }
+
+        // Check for unusual access patterns (multiple locations in short time)
+        $recentAccess = SecurityLog::where('user_id', $user->id)
+            ->where('created_at', '>=', now()->subMinutes(30))
+            ->get();
+
+        $uniqueIPs = $recentAccess->pluck('ip_address')->unique()->count();
+        if ($uniqueIPs > 3) {
+            $suspiciousIndicators++;
+        }
+
+        // Check for rapid resource access
+        $rapidAccess = SecurityLog::where('user_id', $user->id)
+            ->where('created_at', '>=', now()->subMinutes(5))
+            ->count();
+
+        if ($rapidAccess > 20) {
+            $suspiciousIndicators++;
+        }
+
+        // Check for access to sensitive resources
+        $sensitiveAccess = SecurityLog::where('user_id', $user->id)
+            ->where('created_at', '>=', now()->subHours(24))
+            ->whereJsonContains('metadata->resource', ['admin', 'users', 'security', 'financial'])
+            ->count();
+
+        if ($sensitiveAccess > 10) {
+            $suspiciousIndicators++;
+        }
+
+        // Log the detection attempt
+        $this->logSecurityEvent($user, 'suspicious_activity_detection', [
+            'indicators_found' => $suspiciousIndicators,
+            'threshold' => $threshold,
+            'is_suspicious' => $suspiciousIndicators >= $threshold,
+        ], $suspiciousIndicators >= $threshold ? 'high' : 'info');
+
+        return $suspiciousIndicators >= $threshold;
+    }
+
+    /**
+     * Audit all data access (not just violations)
+     */
+    public function auditDataAccess(User $user, string $resource): void
+    {
+        $this->logSecurityEvent($user, 'data_access_audit', [
+            'resource' => $resource,
+            'access_time' => now()->toISOString(),
+            'user_role' => $user->role,
+            'user_permissions' => $user->permissions ?? [],
+            'session_id' => session()->getId(),
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ], 'info', $resource);
+    }
+
+    /**
+     * Validate API permissions for a user and endpoint
+     */
+    public function validateAPIPermissions(User $user, string $endpoint): bool
+    {
+        // Super admins have all permissions
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        // Parse endpoint to determine required permissions
+        $requiredPermissions = $this->parseEndpointPermissions($endpoint);
+        
+        if (empty($requiredPermissions)) {
+            return true; // No specific permissions required
+        }
+
+        // Check if user has all required permissions
+        $hasAllPermissions = collect($requiredPermissions)->every(function ($permission) use ($user) {
+            return $user->hasPermission($permission);
+        });
+
+        // Log the validation attempt
+        $this->logSecurityEvent($user, 'api_permission_validation', [
+            'endpoint' => $endpoint,
+            'required_permissions' => $requiredPermissions,
+            'user_permissions' => $user->permissions ?? [],
+            'validation_result' => $hasAllPermissions,
+        ], $hasAllPermissions ? 'info' : 'medium');
+
+        return $hasAllPermissions;
+    }
+
+    /**
+     * Parse endpoint to determine required permissions
+     */
+    private function parseEndpointPermissions(string $endpoint): array
+    {
+        $permissionMap = [
+            // User management
+            '/api/users' => ['user:read'],
+            '/api/users/*' => ['user:read'],
+            '/api/users/create' => ['user:create'],
+            '/api/users/*/edit' => ['user:update'],
+            '/api/users/*/delete' => ['user:delete'],
+            
+            // Restaurant management
+            '/api/restaurants' => ['restaurant:read'],
+            '/api/restaurants/*' => ['restaurant:read'],
+            '/api/restaurants/create' => ['restaurant:create'],
+            '/api/restaurants/*/edit' => ['restaurant:update'],
+            '/api/restaurants/*/delete' => ['restaurant:delete'],
+            
+            // Branch management
+            '/api/branches' => ['branch:read'],
+            '/api/branches/*' => ['branch:read'],
+            '/api/branches/create' => ['branch:create'],
+            '/api/branches/*/edit' => ['branch:update'],
+            '/api/branches/*/delete' => ['branch:delete'],
+            
+            // Order management
+            '/api/orders' => ['order:read'],
+            '/api/orders/*' => ['order:read'],
+            '/api/orders/create' => ['order:create'],
+            '/api/orders/*/edit' => ['order:update'],
+            '/api/orders/*/delete' => ['order:delete'],
+            
+            // Customer management
+            '/api/customers' => ['customer:read'],
+            '/api/customers/*' => ['customer:read'],
+            '/api/customers/create' => ['customer:create'],
+            '/api/customers/*/edit' => ['customer:update'],
+            '/api/customers/*/delete' => ['customer:delete'],
+            
+            // Analytics and reports
+            '/api/analytics' => ['analytics:read'],
+            '/api/reports' => ['reports:read'],
+            '/api/dashboard' => ['dashboard:read'],
+            
+            // System administration
+            '/api/admin' => ['admin:access'],
+            '/api/admin/*' => ['admin:access'],
+            '/api/settings' => ['settings:read'],
+            '/api/settings/*' => ['settings:update'],
+        ];
+
+        // Find exact match first
+        if (isset($permissionMap[$endpoint])) {
+            return $permissionMap[$endpoint];
+        }
+
+        // Find pattern match
+        foreach ($permissionMap as $pattern => $permissions) {
+            if (str_contains($pattern, '*')) {
+                $regexPattern = str_replace('*', '.*', $pattern);
+                if (preg_match("#^{$regexPattern}$#", $endpoint)) {
+                    return $permissions;
+                }
+            }
+        }
+
+        return []; // No specific permissions required
+    }
+
+    /**
+     * Log successful payment
+     */
+    public function logPaymentSuccess(Order $order, Payment $payment): void
+    {
+        // For customers, we'll log without a user since they're not User model
+        $this->logSecurityEvent(
+            null, // No user for customer payments
+            'payment_success',
+            [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'payment_id' => $payment->id,
+                'transaction_id' => $payment->transaction_id,
+                'amount' => $payment->amount,
+                'currency' => $payment->currency,
+                'gateway' => $payment->gateway,
+                'payment_status' => $payment->status,
+                'order_status' => $order->status,
+                'customer_id' => $order->customer_id,
+                'restaurant_id' => $order->restaurant_id,
+                'customer_email' => $order->customer->email ?? null,
+                'customer_name' => $order->customer->first_name . ' ' . $order->customer->last_name ?? null,
+            ],
+            'info',
+            'orders',
+            $order->id
+        );
+    }
+
+    /**
+     * Log failed payment
+     */
+    public function logPaymentFailure(Order $order, Payment $payment, string $errorMessage): void
+    {
+        $this->logSecurityEvent(
+            null, // No user for customer payments
+            'payment_failure',
+            [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'payment_id' => $payment->id,
+                'transaction_id' => $payment->transaction_id,
+                'amount' => $payment->amount,
+                'currency' => $payment->currency,
+                'gateway' => $payment->gateway,
+                'payment_status' => $payment->status,
+                'order_status' => $order->status,
+                'customer_id' => $order->customer_id,
+                'restaurant_id' => $order->restaurant_id,
+                'error_message' => $errorMessage,
+                'customer_email' => $order->customer->email ?? null,
+                'customer_name' => $order->customer->first_name . ' ' . $order->customer->last_name ?? null,
+            ],
+            'warning',
+            'orders',
+            $order->id
+        );
+    }
+
+    /**
+     * Log payment refund
+     */
+    public function logPaymentRefund(Order $order, Payment $payment, float $refundAmount): void
+    {
+        $this->logSecurityEvent(
+            null, // No user for customer payments
+            'payment_refund',
+            [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'payment_id' => $payment->id,
+                'transaction_id' => $payment->transaction_id,
+                'original_amount' => $payment->amount,
+                'refund_amount' => $refundAmount,
+                'currency' => $payment->currency,
+                'gateway' => $payment->gateway,
+                'payment_status' => $payment->status,
+                'order_status' => $order->status,
+                'customer_id' => $order->customer_id,
+                'restaurant_id' => $order->restaurant_id,
+                'customer_email' => $order->customer->email ?? null,
+                'customer_name' => $order->customer->first_name . ' ' . $order->customer->last_name ?? null,
+            ],
+            'info',
+            'orders',
+            $order->id
+        );
     }
 } 

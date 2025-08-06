@@ -65,4 +65,13 @@ class RestaurantPolicy
     {
         return $user->isSuperAdmin();
     }
+
+    /**
+     * Determine whether the user can upload logo for the model.
+     */
+    public function upload(User $user, Restaurant $restaurant): bool
+    {
+        return $user->isSuperAdmin() || 
+               ($user->hasRole('RESTAURANT_OWNER') && $user->restaurant_id === $restaurant->id);
+    }
 }

@@ -341,6 +341,7 @@ final class SpinWheelControllerTest extends TestCase
             'paid_spins_remaining' => 0,
             'total_spins_used' => 0,
             'daily_spins_used' => 0,
+            'last_spin_date' => now()->toDateString(), // Set to today so no free spins are added
             'is_active' => true,
         ]);
 

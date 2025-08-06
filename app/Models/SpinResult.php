@@ -194,7 +194,18 @@ final class SpinResult extends Model
     {
         // Store discount in customer preferences or create a discount voucher
         $preferences = $customer->preferences ?? [];
+        
+        // Ensure preferences is an array
+        if (!is_array($preferences)) {
+            $preferences = [];
+        }
+        
         $discounts = $preferences['discounts'] ?? [];
+        
+        // Ensure discounts is an array
+        if (!is_array($discounts)) {
+            $discounts = [];
+        }
         
         $discounts[] = [
             'type' => 'spin_wheel_discount',
@@ -216,7 +227,18 @@ final class SpinResult extends Model
     {
         // Store free delivery in customer preferences
         $preferences = $customer->preferences ?? [];
+        
+        // Ensure preferences is an array
+        if (!is_array($preferences)) {
+            $preferences = [];
+        }
+        
         $freeDeliveries = $preferences['free_deliveries'] ?? [];
+        
+        // Ensure freeDeliveries is an array
+        if (!is_array($freeDeliveries)) {
+            $freeDeliveries = [];
+        }
         
         $freeDeliveries[] = [
             'expires_at' => $this->expires_at?->toISOString(),
@@ -236,7 +258,18 @@ final class SpinResult extends Model
     {
         // Add cashback to customer balance or create a refund
         $preferences = $customer->preferences ?? [];
+        
+        // Ensure preferences is an array
+        if (!is_array($preferences)) {
+            $preferences = [];
+        }
+        
         $cashbacks = $preferences['cashbacks'] ?? [];
+        
+        // Ensure cashbacks is an array
+        if (!is_array($cashbacks)) {
+            $cashbacks = [];
+        }
         
         $cashbacks[] = [
             'amount' => $this->prize_value,
@@ -257,7 +290,18 @@ final class SpinResult extends Model
     {
         // Store free item in customer preferences
         $preferences = $customer->preferences ?? [];
+        
+        // Ensure preferences is an array
+        if (!is_array($preferences)) {
+            $preferences = [];
+        }
+        
         $freeItems = $preferences['free_items'] ?? [];
+        
+        // Ensure freeItems is an array
+        if (!is_array($freeItems)) {
+            $freeItems = [];
+        }
         
         $freeItems[] = [
             'expires_at' => $this->expires_at?->toISOString(),

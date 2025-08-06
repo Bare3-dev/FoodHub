@@ -108,8 +108,10 @@ final class MultiRestaurantService
     }
 
     /**
+     * 🕐 Staff transfer system - TEMPORARILY DISABLED
      * Request a staff transfer.
      */
+    /*
     public function requestStaffTransfer(array $transferData): StaffTransferHistory
     {
         return DB::transaction(function () use ($transferData) {
@@ -132,10 +134,13 @@ final class MultiRestaurantService
             return $transfer;
         });
     }
+    */
 
     /**
+     * 🕐 Staff transfer system - TEMPORARILY DISABLED
      * Approve a staff transfer.
      */
+    /*
     public function approveStaffTransfer(StaffTransferHistory $transfer, int $approvedBy, string $notes = null): StaffTransferHistory
     {
         return DB::transaction(function () use ($transfer, $approvedBy, $notes) {
@@ -156,10 +161,13 @@ final class MultiRestaurantService
             return $transfer;
         });
     }
+    */
 
     /**
+     * 🕐 Staff transfer system - TEMPORARILY DISABLED
      * Reject a staff transfer.
      */
+    /*
     public function rejectStaffTransfer(StaffTransferHistory $transfer, int $rejectedBy, string $notes): StaffTransferHistory
     {
         return DB::transaction(function () use ($transfer, $rejectedBy, $notes) {
@@ -180,10 +188,13 @@ final class MultiRestaurantService
             return $transfer;
         });
     }
+    */
 
     /**
+     * 🕐 Staff transfer system - TEMPORARILY DISABLED
      * Complete a staff transfer.
      */
+    /*
     public function completeStaffTransfer(StaffTransferHistory $transfer): StaffTransferHistory
     {
         return DB::transaction(function () use ($transfer) {
@@ -216,6 +227,7 @@ final class MultiRestaurantService
             return $transfer;
         });
     }
+    */
 
     /**
      * Validate transfer request.
@@ -451,22 +463,411 @@ final class MultiRestaurantService
     }
 
     /**
-     * Get accessible branches for a user.
+     * Get accessible branches for a user
      */
     public function getAccessibleBranches(User $user): Collection
     {
-        if ($user->role === 'SUPER_ADMIN') {
-            return RestaurantBranch::all();
+        if ($user->isSuperAdmin()) {
+            return RestaurantBranch::with('restaurant')->get();
         }
 
-        if ($user->role === 'RESTAURANT_OWNER') {
-            return RestaurantBranch::where('restaurant_id', $user->restaurant_id)->get();
+        $accessibleBranches = collect();
+
+        // Get branches from user's direct assignments
+        if ($user->restaurant_branch_id) {
+            $accessibleBranches->push(RestaurantBranch::find($user->restaurant_branch_id));
         }
 
-        if ($user->role === 'BRANCH_MANAGER') {
-            return RestaurantBranch::where('id', $user->restaurant_branch_id)->get();
+        // Get branches from user's restaurant assignments
+        if ($user->restaurant_id) {
+            $restaurantBranches = RestaurantBranch::where('restaurant_id', $user->restaurant_id)->get();
+            $accessibleBranches = $accessibleBranches->merge($restaurantBranches);
         }
 
-        return collect();
+        // Get branches from user's permissions
+        $branchPermissions = $this->getPermissionsForScope($user->role, 'branch');
+        foreach ($branchPermissions as $permission) {
+            if ($permission->scope_id) {
+                $branch = RestaurantBranch::find($permission->scope_id);
+                if ($branch && !$accessibleBranches->contains('id', $branch->id)) {
+                    $accessibleBranches->push($branch);
+                }
+            }
+        }
+
+        return $accessibleBranches->unique('id')->filter();
+    }
+
+    /**
+     * Create a new restaurant
+     */
+    public function createRestaurant(array $data): Restaurant
+    {
+        // Validate required fields
+        $this->validateRestaurantData($data);
+
+        return DB::transaction(function () use ($data) {
+            $restaurant = Restaurant::create([
+                'name' => $data['name'],
+                'slug' => $this->generateRestaurantSlug($data['name']),
+                'description' => $data['description'] ?? null,
+                'cuisine_type' => $data['cuisine_type'] ?? null,
+                'phone' => $data['phone'] ?? null,
+                'email' => $data['email'] ?? null,
+                'website' => $data['website'] ?? null,
+                'logo_url' => $data['logo_url'] ?? null,
+                'cover_image_url' => $data['cover_image_url'] ?? null,
+                'business_hours' => $data['business_hours'] ?? [],
+                'settings' => $data['settings'] ?? [],
+                'status' => $data['status'] ?? 'active',
+                'commission_rate' => $data['commission_rate'] ?? 0.00,
+                'is_featured' => $data['is_featured'] ?? false,
+            ]);
+
+            Log::info('Restaurant created', [
+                'restaurant_id' => $restaurant->id,
+                'name' => $restaurant->name,
+                'created_by' => auth()->id(),
+            ]);
+
+            return $restaurant;
+        });
+    }
+
+    /**
+     * Update an existing restaurant
+     */
+    public function updateRestaurant(Restaurant $restaurant, array $data): Restaurant
+    {
+        return DB::transaction(function () use ($restaurant, $data) {
+            $originalData = $restaurant->toArray();
+
+            $restaurant->update([
+                'name' => $data['name'] ?? $restaurant->name,
+                'slug' => isset($data['name']) ? $this->generateRestaurantSlug($data['name']) : $restaurant->slug,
+                'description' => $data['description'] ?? $restaurant->description,
+                'cuisine_type' => $data['cuisine_type'] ?? $restaurant->cuisine_type,
+                'phone' => $data['phone'] ?? $restaurant->phone,
+                'email' => $data['email'] ?? $restaurant->email,
+                'website' => $data['website'] ?? $restaurant->website,
+                'logo_url' => $data['logo_url'] ?? $restaurant->logo_url,
+                'cover_image_url' => $data['cover_image_url'] ?? $restaurant->cover_image_url,
+                'business_hours' => $data['business_hours'] ?? $restaurant->business_hours,
+                'settings' => $data['settings'] ?? $restaurant->settings,
+                'status' => $data['status'] ?? $restaurant->status,
+                'commission_rate' => $data['commission_rate'] ?? $restaurant->commission_rate,
+                'is_featured' => $data['is_featured'] ?? $restaurant->is_featured,
+            ]);
+
+            Log::info('Restaurant updated', [
+                'restaurant_id' => $restaurant->id,
+                'name' => $restaurant->name,
+                'updated_by' => auth()->id(),
+                'changes' => 'Restaurant data updated',
+            ]);
+
+            return $restaurant->fresh();
+        });
+    }
+
+    /**
+     * Delete a restaurant
+     */
+    public function deleteRestaurant(Restaurant $restaurant): bool
+    {
+        return DB::transaction(function () use ($restaurant) {
+            // Check if restaurant has active orders
+            $activeOrders = $restaurant->orders()->whereIn('status', ['pending', 'confirmed', 'preparing'])->count();
+            if ($activeOrders > 0) {
+                throw new \Exception("Cannot delete restaurant with {$activeOrders} active orders");
+            }
+
+            // Soft delete or mark as inactive
+            $restaurant->update(['status' => 'inactive']);
+
+            Log::info('Restaurant deleted', [
+                'restaurant_id' => $restaurant->id,
+                'name' => $restaurant->name,
+                'deleted_by' => auth()->id(),
+            ]);
+
+            return true;
+        });
+    }
+
+    /**
+     * Get restaurant details by ID
+     */
+    public function getRestaurantDetails(int $restaurantId): Restaurant
+    {
+        $restaurant = Restaurant::with(['branches', 'menuCategories', 'loyaltyPrograms'])
+            ->findOrFail($restaurantId);
+
+        return $restaurant;
+    }
+
+    /**
+     * Create a new branch for a restaurant
+     */
+    public function createBranch(int $restaurantId, array $data): RestaurantBranch
+    {
+        // Validate restaurant exists
+        $restaurant = Restaurant::findOrFail($restaurantId);
+
+        // Validate required fields
+        $this->validateBranchData($data);
+
+        return DB::transaction(function () use ($restaurant, $data) {
+            $branch = RestaurantBranch::create([
+                'restaurant_id' => $restaurant->id,
+                'name' => $data['name'],
+                'slug' => $this->generateBranchSlug($restaurant->id, $data['name']),
+                'address' => $data['address'],
+                'city' => $data['city'],
+                'state' => $data['state'],
+                'postal_code' => $data['postal_code'],
+                'country' => $data['country'],
+                'latitude' => $data['latitude'] ?? null,
+                'longitude' => $data['longitude'] ?? null,
+                'phone' => $data['phone'] ?? null,
+                'manager_name' => $data['manager_name'] ?? null,
+                'manager_phone' => $data['manager_phone'] ?? null,
+                'operating_hours' => $data['operating_hours'] ?? [],
+                'delivery_zones' => $data['delivery_zones'] ?? [],
+                'delivery_fee' => $data['delivery_fee'] ?? 0.00,
+                'minimum_order_amount' => $data['minimum_order_amount'] ?? 0.00,
+                'estimated_delivery_time' => $data['estimated_delivery_time'] ?? 30,
+                'status' => $data['status'] ?? 'active',
+                'accepts_online_orders' => $data['accepts_online_orders'] ?? true,
+                'accepts_delivery' => $data['accepts_delivery'] ?? true,
+                'accepts_pickup' => $data['accepts_pickup'] ?? true,
+                'settings' => $data['settings'] ?? [],
+            ]);
+
+            Log::info('Branch created', [
+                'branch_id' => $branch->id,
+                'restaurant_id' => $restaurant->id,
+                'name' => $branch->name,
+                'created_by' => auth()->id(),
+            ]);
+
+            return $branch;
+        });
+    }
+
+    /**
+     * Update an existing branch
+     */
+    public function updateBranch(RestaurantBranch $branch, array $data): RestaurantBranch
+    {
+        return DB::transaction(function () use ($branch, $data) {
+            $originalData = $branch->toArray();
+
+            $branch->update([
+                'name' => $data['name'] ?? $branch->name,
+                'slug' => isset($data['name']) ? $this->generateBranchSlug($branch->restaurant_id, $data['name']) : $branch->slug,
+                'address' => $data['address'] ?? $branch->address,
+                'city' => $data['city'] ?? $branch->city,
+                'state' => $data['state'] ?? $branch->state,
+                'postal_code' => $data['postal_code'] ?? $branch->postal_code,
+                'country' => $data['country'] ?? $branch->country,
+                'latitude' => $data['latitude'] ?? $branch->latitude,
+                'longitude' => $data['longitude'] ?? $branch->longitude,
+                'phone' => $data['phone'] ?? $branch->phone,
+                'manager_name' => $data['manager_name'] ?? $branch->manager_name,
+                'manager_phone' => $data['manager_phone'] ?? $branch->manager_phone,
+                'operating_hours' => $data['operating_hours'] ?? $branch->operating_hours,
+                'delivery_zones' => $data['delivery_zones'] ?? $branch->delivery_zones,
+                'delivery_fee' => $data['delivery_fee'] ?? $branch->delivery_fee,
+                'minimum_order_amount' => $data['minimum_order_amount'] ?? $branch->minimum_order_amount,
+                'estimated_delivery_time' => $data['estimated_delivery_time'] ?? $branch->estimated_delivery_time,
+                'status' => $data['status'] ?? $branch->status,
+                'accepts_online_orders' => $data['accepts_online_orders'] ?? $branch->accepts_online_orders,
+                'accepts_delivery' => $data['accepts_delivery'] ?? $branch->accepts_delivery,
+                'accepts_pickup' => $data['accepts_pickup'] ?? $branch->accepts_pickup,
+                'settings' => $data['settings'] ?? $branch->settings,
+            ]);
+
+            Log::info('Branch updated', [
+                'branch_id' => $branch->id,
+                'restaurant_id' => $branch->restaurant_id,
+                'name' => $branch->name,
+                'updated_by' => auth()->id(),
+                'changes' => 'Branch data updated',
+            ]);
+
+            return $branch->fresh();
+        });
+    }
+
+    /**
+     * Delete a branch
+     */
+    public function deleteBranch(RestaurantBranch $branch): bool
+    {
+        return DB::transaction(function () use ($branch) {
+            // Check if branch has active orders
+            $activeOrders = $branch->orders()->whereIn('status', ['pending', 'confirmed', 'preparing'])->count();
+            if ($activeOrders > 0) {
+                throw new \Exception("Cannot delete branch with {$activeOrders} active orders");
+            }
+
+            // Check if branch has assigned staff
+            $assignedStaff = $branch->users()->count();
+            if ($assignedStaff > 0) {
+                throw new \Exception("Cannot delete branch with {$assignedStaff} assigned staff members");
+            }
+
+            // Soft delete or mark as inactive
+            $branch->update(['status' => 'inactive']);
+
+            Log::info('Branch deleted', [
+                'branch_id' => $branch->id,
+                'restaurant_id' => $branch->restaurant_id,
+                'name' => $branch->name,
+                'deleted_by' => auth()->id(),
+            ]);
+
+            return true;
+        });
+    }
+
+    /**
+     * Assign a user to a restaurant
+     */
+    public function assignUserToRestaurant(User $user, int $restaurantId): void
+    {
+        DB::transaction(function () use ($user, $restaurantId) {
+            // Validate restaurant exists
+            $restaurant = Restaurant::findOrFail($restaurantId);
+
+            // Remove user from any existing branch assignment
+            $user->update([
+                'restaurant_id' => $restaurantId,
+                'restaurant_branch_id' => null,
+            ]);
+
+            Log::info('User assigned to restaurant', [
+                'user_id' => $user->id,
+                'restaurant_id' => $restaurantId,
+                'assigned_by' => auth()->id(),
+            ]);
+        });
+    }
+
+    /**
+     * Assign a user to a branch
+     */
+    public function assignUserToBranch(User $user, int $branchId): void
+    {
+        DB::transaction(function () use ($user, $branchId) {
+            // Validate branch exists
+            $branch = RestaurantBranch::findOrFail($branchId);
+
+            // Assign user to both restaurant and branch
+            $user->update([
+                'restaurant_id' => $branch->restaurant_id,
+                'restaurant_branch_id' => $branchId,
+            ]);
+
+            Log::info('User assigned to branch', [
+                'user_id' => $user->id,
+                'restaurant_id' => $branch->restaurant_id,
+                'branch_id' => $branchId,
+                'assigned_by' => auth()->id(),
+            ]);
+        });
+    }
+
+    /**
+     * Remove a user from a restaurant
+     */
+    public function removeUserFromRestaurant(User $user, int $restaurantId): void
+    {
+        DB::transaction(function () use ($user, $restaurantId) {
+            // Validate user is assigned to this restaurant
+            if ($user->restaurant_id !== $restaurantId) {
+                throw new \Exception('User is not assigned to this restaurant');
+            }
+
+            // Remove user from restaurant and branch
+            $user->update([
+                'restaurant_id' => null,
+                'restaurant_branch_id' => null,
+            ]);
+
+            Log::info('User removed from restaurant', [
+                'user_id' => $user->id,
+                'restaurant_id' => $restaurantId,
+                'removed_by' => auth()->id(),
+            ]);
+        });
+    }
+
+    /**
+     * Validate restaurant data
+     */
+    private function validateRestaurantData(array $data): void
+    {
+        if (empty($data['name'])) {
+            throw new \InvalidArgumentException('Restaurant name is required');
+        }
+
+        // Check for duplicate name
+        if (Restaurant::where('name', $data['name'])->exists()) {
+            throw new \InvalidArgumentException('Restaurant with this name already exists');
+        }
+    }
+
+    /**
+     * Validate branch data
+     */
+    private function validateBranchData(array $data): void
+    {
+        if (empty($data['name'])) {
+            throw new \InvalidArgumentException('Branch name is required');
+        }
+
+        if (empty($data['address'])) {
+            throw new \InvalidArgumentException('Branch address is required');
+        }
+
+        if (empty($data['city'])) {
+            throw new \InvalidArgumentException('Branch city is required');
+        }
+    }
+
+    /**
+     * Generate unique restaurant slug
+     */
+    private function generateRestaurantSlug(string $name): string
+    {
+        $baseSlug = \Str::slug($name);
+        $slug = $baseSlug;
+        $counter = 1;
+
+        while (Restaurant::where('slug', $slug)->exists()) {
+            $slug = $baseSlug . '-' . $counter;
+            $counter++;
+        }
+
+        return $slug;
+    }
+
+    /**
+     * Generate unique branch slug
+     */
+    private function generateBranchSlug(int $restaurantId, string $name): string
+    {
+        $baseSlug = \Str::slug($name);
+        $slug = $baseSlug;
+        $counter = 1;
+
+        while (RestaurantBranch::where('restaurant_id', $restaurantId)->where('slug', $slug)->exists()) {
+            $slug = $baseSlug . '-' . $counter;
+            $counter++;
+        }
+
+        return $slug;
     }
 } 

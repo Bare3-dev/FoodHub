@@ -57,19 +57,130 @@ final class SecurityLoggingServiceTest extends TestCase
 
         // Test medium severity
         $this->securityService->logSecurityIncident(
-            'authentication_failure',
+            'suspicious_activity',
             SecurityLoggingService::SEVERITY_MEDIUM,
-            'Failed login attempt',
-            ['email' => 'test@example.com']
+            'Suspicious login pattern detected',
+            ['ip_address' => '192.168.1.100']
         );
 
         // Test low severity
         $this->securityService->logSecurityIncident(
-            'suspicious_activity',
+            'data_access',
             SecurityLoggingService::SEVERITY_LOW,
-            'Unusual login pattern',
-            ['ip_address' => '192.168.1.1']
+            'Data access logged',
+            ['resource' => 'customer_profile']
         );
+    }
+
+    /**
+     * Test suspicious activity detection
+     */
+    public function test_it_detects_suspicious_activity(): void
+    {
+        $user = User::factory()->create(['role' => 'CASHIER']);
+
+        // Test normal activity (should not be suspicious)
+        $result = $this->securityService->detectSuspiciousActivity($user);
+        $this->assertFalse($result);
+
+        // Create suspicious activity data to trigger multiple indicators
+        
+        // 1. Multiple failed login attempts (6 failures in 1 hour)
+        for ($i = 0; $i < 6; $i++) {
+            SecurityLog::create([
+                'user_id' => $user->id,
+                'event_type' => 'authentication_failure',
+                'ip_address' => '192.168.1.1',
+                'user_agent' => 'test-agent',
+                'session_id' => 'test-session',
+                'metadata' => ['failure_reason' => 'invalid_credentials'],
+                'created_at' => now()->subMinutes(30),
+            ]);
+        }
+
+        // 2. Multiple IP addresses in short time (4 different IPs)
+        for ($i = 0; $i < 4; $i++) {
+            SecurityLog::create([
+                'user_id' => $user->id,
+                'event_type' => 'data_access',
+                'ip_address' => "192.168.1.{$i}",
+                'user_agent' => 'test-agent',
+                'session_id' => 'test-session',
+                'metadata' => ['resource' => 'customer_data'],
+                'created_at' => now()->subMinutes(15),
+            ]);
+        }
+
+        // 3. Rapid resource access (25+ requests in 5 minutes)
+        for ($i = 0; $i < 25; $i++) {
+            SecurityLog::create([
+                'user_id' => $user->id,
+                'event_type' => 'data_access',
+                'ip_address' => '192.168.1.1',
+                'user_agent' => 'test-agent',
+                'session_id' => 'test-session',
+                'metadata' => ['resource' => 'customer_data'],
+                'created_at' => now()->subMinutes(2),
+            ]);
+        }
+
+        $result = $this->securityService->detectSuspiciousActivity($user);
+        $this->assertTrue($result);
+    }
+
+    /**
+     * Test data access auditing
+     */
+    public function test_it_audits_data_access(): void
+    {
+        $user = User::factory()->create(['role' => 'CASHIER']);
+        $resource = 'customer_data';
+
+        // Test that the method doesn't throw any exceptions
+        $this->expectNotToPerformAssertions();
+        
+        $this->securityService->auditDataAccess($user, $resource);
+    }
+
+    /**
+     * Test API permission validation
+     */
+    public function test_it_validates_api_permissions(): void
+    {
+        $user = User::factory()->create(['role' => 'CASHIER', 'permissions' => []]);
+
+        // Test endpoint with no specific permissions required
+        $result = $this->securityService->validateAPIPermissions($user, '/api/public');
+        $this->assertTrue($result);
+
+        // Test endpoint with required permissions (user doesn't have admin:access)
+        $result = $this->securityService->validateAPIPermissions($user, '/api/admin/users');
+        $this->assertFalse($result);
+
+        // Test super admin (should always have access)
+        $superAdmin = User::factory()->create(['role' => 'SUPER_ADMIN']);
+        $result = $this->securityService->validateAPIPermissions($superAdmin, '/api/admin/users');
+        $this->assertTrue($result);
+    }
+
+    /**
+     * Test permission parsing for different endpoints
+     */
+    public function test_it_parses_endpoint_permissions_correctly(): void
+    {
+        $user = User::factory()->create(['role' => 'CASHIER', 'permissions' => []]);
+
+        // Test user management endpoints (user doesn't have required permissions)
+        $this->assertFalse($this->securityService->validateAPIPermissions($user, '/api/users/create'));
+        $this->assertFalse($this->securityService->validateAPIPermissions($user, '/api/users/1/edit'));
+
+        // Test restaurant management endpoints (user doesn't have required permissions)
+        $this->assertFalse($this->securityService->validateAPIPermissions($user, '/api/restaurants/create'));
+        $this->assertFalse($this->securityService->validateAPIPermissions($user, '/api/restaurants/1/edit'));
+
+        // Test analytics endpoints (user doesn't have required permissions)
+        $this->assertFalse($this->securityService->validateAPIPermissions($user, '/api/analytics'));
+        $this->assertFalse($this->securityService->validateAPIPermissions($user, '/api/reports'));
     }
 
     /**

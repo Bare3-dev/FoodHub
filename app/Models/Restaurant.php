@@ -107,6 +107,14 @@ final class Restaurant extends Model
     }
 
     /**
+     * Get the configurations for the restaurant.
+     */
+    public function configs(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(RestaurantConfig::class);
+    }
+
+    /**
      * Scope a query to only include active restaurants.
      */
     public function scopeActive($query)
