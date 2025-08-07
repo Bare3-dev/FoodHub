@@ -11,7 +11,7 @@ use App\Models\MenuCategory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-final class StampCardService
+class StampCardService
 {
     /**
      * Check if a stamp card is ready for reward redemption

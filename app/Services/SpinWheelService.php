@@ -14,7 +14,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-final class SpinWheelService
+class SpinWheelService
 {
     /**
      * Validate if a customer can spin the wheel.

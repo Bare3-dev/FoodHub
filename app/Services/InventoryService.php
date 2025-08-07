@@ -31,7 +31,7 @@ use Exception;
  * - Audit trail for all stock changes
  * - Time-based availability checks
  */
-final class InventoryService
+class InventoryService
 {
     private SecurityLoggingService $securityLoggingService;
     private NotificationService $notificationService;

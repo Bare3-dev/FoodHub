@@ -92,14 +92,6 @@ final class LoyaltyProgram extends Model
     }
 
     /**
-     * Get the customer challenges for the program.
-     */
-    public function customerChallenges(): HasMany
-    {
-        return $this->hasMany(CustomerChallenge::class);
-    }
-
-    /**
      * Scope a query to only include active loyalty programs.
      */
     public function scopeActive($query)

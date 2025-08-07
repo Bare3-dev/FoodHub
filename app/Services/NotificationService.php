@@ -20,7 +20,7 @@ use Carbon\Carbon;
  * Handles in-app notifications for inventory management,
  * low stock alerts, and system events.
  */
-final class NotificationService
+class NotificationService
 {
     /**
      * Create a low stock notification
@@ -224,7 +224,7 @@ final class NotificationService
         ]);
 
         // Find admin users to notify
-        $adminUsers = User::where('role', 'admin')->get();
+        $adminUsers = User::where('role', 'SUPER_ADMIN')->get();
 
         foreach ($adminUsers as $admin) {
             Notification::create([

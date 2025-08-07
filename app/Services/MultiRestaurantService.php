@@ -14,7 +14,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-final class MultiRestaurantService
+class MultiRestaurantService
 {
     /**
      * Check if user has permission for a specific action and scope.

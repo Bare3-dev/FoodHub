@@ -11,7 +11,7 @@ use App\Models\LoyaltyPointsHistory;
 use App\Services\StampCardService;
 use Illuminate\Support\Facades\DB;
 
-final class LoyaltyService
+class LoyaltyService
 {
     private StampCardService $stampCardService;
 

@@ -245,4 +245,37 @@ class OrderPolicy
 
         return false;
     }
+
+    /**
+     * Determine whether the user can sync order with POS.
+     */
+    public function syncOrder(?User $user, ?Order $order): bool
+    {
+        // Handle null values
+        if (!$user || !$order) {
+            return false;
+        }
+
+        // Check if user is active
+        if ($user->status !== 'active') {
+            return false;
+        }
+
+        // Super admin can sync any order
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        // Restaurant owners can sync orders in their restaurants
+        if ($user->hasRole('RESTAURANT_OWNER') && $user->restaurant_id === $order->restaurant_id) {
+            return true;
+        }
+
+        // Branch managers can sync orders in their branches
+        if ($user->hasRole('BRANCH_MANAGER') && $user->restaurant_branch_id === $order->restaurant_branch_id) {
+            return true;
+        }
+
+        return false;
+    }
 }

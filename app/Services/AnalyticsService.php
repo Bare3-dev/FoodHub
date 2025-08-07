@@ -16,7 +16,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-final class AnalyticsService
+class AnalyticsService
 {
     /**
      * Calculate and store performance metrics for a user.

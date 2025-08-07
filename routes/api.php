@@ -264,6 +264,42 @@ Route::group(['middleware' => ['auth:sanctum', \App\Http\Middleware\UserStatusMi
         Route::post('/driver-working-zones/optimize-route', [DriverWorkingZoneController::class, 'optimizeRoute']);
         Route::post('/driver-working-zones/assign-driver', [DriverWorkingZoneController::class, 'assignDriver']);
         Route::post('/driver-working-zones/calculate-delivery-time', [DriverWorkingZoneController::class, 'calculateDeliveryTime']);
+        
+        // Real-time Delivery Tracking endpoints
+        Route::prefix('delivery')->group(function () {
+            // Driver management
+            Route::post('/drivers', [App\Http\Controllers\Api\DeliveryController::class, 'createDriver']);
+            Route::put('/drivers/{driver}/status', [App\Http\Controllers\Api\DeliveryController::class, 'updateDriverStatus']);
+            Route::get('/drivers/available', [App\Http\Controllers\Api\DeliveryController::class, 'getAvailableDrivers']);
+            
+            // Route optimization
+            Route::post('/route/optimize', [App\Http\Controllers\Api\DeliveryController::class, 'optimizeDeliveryRoute']);
+            Route::post('/route/calculate-eta', [App\Http\Controllers\Api\DeliveryController::class, 'calculateRouteETA']);
+            Route::put('/route/{assignment}/progress', [App\Http\Controllers\Api\DeliveryController::class, 'updateRouteProgress']);
+            
+            // Real-time location tracking
+            Route::post('/drivers/{driver}/location', [App\Http\Controllers\Api\DeliveryController::class, 'broadcastDriverLocation']);
+            Route::get('/assignments/{assignment}/progress', [App\Http\Controllers\Api\DeliveryController::class, 'trackDeliveryProgress']);
+            Route::get('/orders/{order}/eta', [App\Http\Controllers\Api\DeliveryController::class, 'calculateCustomerETA']);
+            
+            // Order assignment and dispatch
+            Route::post('/orders/assign', [App\Http\Controllers\Api\DeliveryController::class, 'assignOrderToDriver']);
+            Route::post('/assignments/{assignment}/response', [App\Http\Controllers\Api\DeliveryController::class, 'handleDriverResponse']);
+            Route::post('/orders/batch', [App\Http\Controllers\Api\DeliveryController::class, 'batchOrdersForDelivery']);
+            
+            // Customer communication
+            Route::post('/assignments/{assignment}/notifications', [App\Http\Controllers\Api\DeliveryController::class, 'sendDeliveryNotifications']);
+            Route::get('/orders/{order}/tracking-link', [App\Http\Controllers\Api\DeliveryController::class, 'generateTrackingLink']);
+            Route::post('/assignments/{assignment}/exceptions', [App\Http\Controllers\Api\DeliveryController::class, 'handleDeliveryExceptions']);
+            
+            // Performance analytics
+            Route::get('/reports', [App\Http\Controllers\Api\DeliveryController::class, 'generateDeliveryReports']);
+            Route::get('/kpis', [App\Http\Controllers\Api\DeliveryController::class, 'trackDeliveryKPIs']);
+            Route::post('/zones/optimize', [App\Http\Controllers\Api\DeliveryController::class, 'optimizeDeliveryZones']);
+            
+            // Tracking history
+            Route::get('/drivers/{driver}/tracking-history', [App\Http\Controllers\Api\DeliveryController::class, 'getDeliveryTrackingHistory']);
+        });
     });
     
     // Customer Service + Super Admin endpoints
@@ -316,6 +352,26 @@ Route::post('/webhook-test', function() {
     return response()->json(['status' => 'success', 'message' => 'Webhook test working']);
 });
 
+// Challenge endpoints
+Route::group(['middleware' => 'role.permission:SUPER_ADMIN|RESTAURANT_OWNER|BRANCH_MANAGER'], function () {
+    Route::get('/challenges', [App\Http\Controllers\Api\ChallengeController::class, 'index']);
+    Route::post('/challenges', [App\Http\Controllers\Api\ChallengeController::class, 'store']);
+    Route::post('/challenges/{challenge}/assign', [App\Http\Controllers\Api\ChallengeController::class, 'assign']);
+    Route::get('/challenges/{challenge}/leaderboard', [App\Http\Controllers\Api\ChallengeController::class, 'getLeaderboard']);
+    Route::post('/challenges/generate-weekly', [App\Http\Controllers\Api\ChallengeController::class, 'generateWeekly']);
+    Route::post('/challenges/expire-old', [App\Http\Controllers\Api\ChallengeController::class, 'expireOld']);
+    Route::post('/challenges/progress/update', [App\Http\Controllers\Api\ChallengeController::class, 'updateProgress']);
+    Route::post('/challenges/engagement/track', [App\Http\Controllers\Api\ChallengeController::class, 'trackEngagement']);
+    Route::get('/challenges/{challenge}/rewards/{customer}', [App\Http\Controllers\Api\ChallengeController::class, 'calculateRewards']);
+    Route::post('/customer-challenges/{customerChallenge}/complete', [App\Http\Controllers\Api\ChallengeController::class, 'complete']);
+});
+
+// Customer challenge endpoints
+Route::group(['middleware' => 'role.permission:SUPER_ADMIN|RESTAURANT_OWNER|BRANCH_MANAGER|CUSTOMER_SERVICE'], function () {
+    Route::get('/customers/{customer}/challenges', [App\Http\Controllers\Api\ChallengeController::class, 'getCustomerChallenges']);
+    Route::get('/customers/{customer}/challenges/progress', [App\Http\Controllers\Api\ChallengeController::class, 'getCustomerProgress']);
+});
+
 // Webhook endpoints - No authentication required, strict security
 Route::post('/webhook/payment/{gateway}', [WebhookController::class, 'handlePaymentWebhook']);
 
@@ -324,6 +380,48 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::post('/webhook/register', [WebhookController::class, 'registerWebhook']);
     Route::get('/webhook/statistics', [WebhookController::class, 'getWebhookStatistics']);
     Route::get('/webhook/logs', [WebhookController::class, 'getWebhookLogs']);
+});
+
+// POS Integration endpoints
+Route::prefix('pos')->group(function () {
+    // POS Integration Management - Restaurant owners and super admins
+    Route::group(['middleware' => 'role.permission:SUPER_ADMIN|RESTAURANT_OWNER'], function () {
+        Route::post('/integrate/{type}', [App\Http\Controllers\Api\POSIntegrationController::class, 'integrate']);
+        Route::get('/status/{restaurant}', [App\Http\Controllers\Api\POSIntegrationController::class, 'getStatus']);
+        Route::put('/integrations/{integration}/configuration', [App\Http\Controllers\Api\POSIntegrationController::class, 'updateConfiguration']);
+        Route::patch('/integrations/{integration}/toggle', [App\Http\Controllers\Api\POSIntegrationController::class, 'toggleStatus']);
+        Route::delete('/integrations/{integration}', [App\Http\Controllers\Api\POSIntegrationController::class, 'delete']);
+        Route::get('/integrations/{integration}/logs', [App\Http\Controllers\Api\POSIntegrationController::class, 'getSyncLogs']);
+    });
+    
+    // POS Webhooks - No authentication required, strict security
+    Route::post('/webhook/square', [App\Http\Controllers\Api\SquarePOSController::class, 'handlePOSWebhook']);
+    Route::post('/webhook/toast', [App\Http\Controllers\Api\ToastPOSController::class, 'handlePOSWebhook']);
+    Route::post('/webhook/local/{pos_id}', [App\Http\Controllers\Api\LocalPOSController::class, 'handlePOSWebhook']);
+    
+    // Manual Sync Endpoints - Restaurant owners and super admins
+    Route::group(['middleware' => 'role.permission:SUPER_ADMIN|RESTAURANT_OWNER'], function () {
+        // Square POS
+        Route::post('/square/orders/{order}/sync', [App\Http\Controllers\Api\SquarePOSController::class, 'syncOrder']);
+        Route::post('/square/restaurants/{restaurant}/menu/sync', [App\Http\Controllers\Api\SquarePOSController::class, 'syncMenu']);
+        Route::post('/square/restaurants/{restaurant}/inventory/sync', [App\Http\Controllers\Api\SquarePOSController::class, 'syncInventory']);
+        Route::get('/square/restaurants/{restaurant}/connection/test', [App\Http\Controllers\Api\SquarePOSController::class, 'validatePOSConnection']);
+        Route::get('/square/restaurants/{restaurant}/status', [App\Http\Controllers\Api\SquarePOSController::class, 'getIntegrationStatus']);
+        
+        // Toast POS
+        Route::post('/toast/orders/{order}/sync', [App\Http\Controllers\Api\ToastPOSController::class, 'syncOrder']);
+        Route::post('/toast/restaurants/{restaurant}/menu/sync', [App\Http\Controllers\Api\ToastPOSController::class, 'syncMenu']);
+        Route::post('/toast/restaurants/{restaurant}/inventory/sync', [App\Http\Controllers\Api\ToastPOSController::class, 'syncInventory']);
+        Route::get('/toast/restaurants/{restaurant}/connection/test', [App\Http\Controllers\Api\ToastPOSController::class, 'validatePOSConnection']);
+        Route::get('/toast/restaurants/{restaurant}/status', [App\Http\Controllers\Api\ToastPOSController::class, 'getIntegrationStatus']);
+        
+        // Local POS
+        Route::post('/local/orders/{order}/sync', [App\Http\Controllers\Api\LocalPOSController::class, 'syncOrder']);
+        Route::post('/local/restaurants/{restaurant}/menu/sync', [App\Http\Controllers\Api\LocalPOSController::class, 'syncMenu']);
+        Route::post('/local/restaurants/{restaurant}/inventory/sync', [App\Http\Controllers\Api\LocalPOSController::class, 'syncInventory']);
+        Route::get('/local/restaurants/{restaurant}/connection/test', [App\Http\Controllers\Api\LocalPOSController::class, 'validatePOSConnection']);
+        Route::get('/local/restaurants/{restaurant}/status', [App\Http\Controllers\Api\LocalPOSController::class, 'getIntegrationStatus']);
+    });
 });
 
 

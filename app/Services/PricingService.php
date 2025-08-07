@@ -27,7 +27,7 @@ use Carbon\Carbon;
  * - Item price calculation with customizations
  * - Pricing reports and analytics
  */
-final class PricingService
+class PricingService
 {
     /**
      * VAT rate for Saudi Arabia

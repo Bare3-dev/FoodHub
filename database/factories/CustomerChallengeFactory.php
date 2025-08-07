@@ -3,7 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Customer;
-use App\Models\LoyaltyProgram;
+use App\Models\Challenge;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,16 +18,65 @@ class CustomerChallengeFactory extends Factory
      */
     public function definition(): array
     {
+        $challenge = Challenge::factory()->create();
+        $progressTarget = $this->faker->numberBetween(10, 100);
+        $progressCurrent = $this->faker->numberBetween(0, $progressTarget);
+        $progressPercentage = ($progressCurrent / $progressTarget) * 100;
+        
         return [
-            'loyalty_program_id' => LoyaltyProgram::factory(),
             'customer_id' => Customer::factory(),
-            'challenge_name' => $this->faker->words(3, true),
-            'description' => $this->faker->sentence(),
-            'target_value' => $this->faker->numberBetween(10, 100),
-            'current_value' => $this->faker->numberBetween(0, 50),
-            'is_completed' => $this->faker->boolean(30),
-            'completed_at' => $this->faker->optional()->dateTimeBetween('-1 month', 'now'),
-            'reward_points' => $this->faker->numberBetween(100, 1000),
+            'challenge_id' => $challenge->id,
+            'assigned_at' => $this->faker->dateTimeBetween('-1 month', 'now'),
+            'started_at' => $this->faker->optional(70)->dateTimeBetween('-1 month', 'now'),
+            'completed_at' => $this->faker->optional(30)->dateTimeBetween('-1 month', 'now'),
+            'expires_at' => $this->faker->optional(80)->dateTimeBetween('now', '+1 month'),
+            'status' => $this->faker->randomElement(['assigned', 'active', 'completed', 'rewarded', 'expired', 'cancelled']),
+            'progress_current' => $progressCurrent,
+            'progress_target' => $progressTarget,
+            'progress_percentage' => $progressPercentage,
+            'progress_details' => $this->faker->optional()->randomElement([
+                ['steps_completed' => $this->faker->numberBetween(1, 5)],
+                ['milestones' => ['milestone1' => true, 'milestone2' => false]],
+                ['checkpoints' => ['checkpoint1' => 'completed', 'checkpoint2' => 'pending']],
+            ]),
+            'reward_claimed' => $this->faker->boolean(20),
+            'reward_claimed_at' => $this->faker->optional(20)->dateTimeBetween('-1 month', 'now'),
+            'reward_details' => $this->faker->optional()->randomElement([
+                ['points_earned' => $this->faker->numberBetween(100, 500)],
+                ['discount_amount' => $this->faker->randomFloat(2, 5, 50)],
+                ['free_item' => $this->faker->word()],
+            ]),
+            'metadata' => $this->faker->optional()->randomElement([
+                ['difficulty' => 'easy', 'category' => 'weekly'],
+                ['theme' => 'summer', 'bonus_multiplier' => 1.5],
+                ['special_event' => true, 'event_name' => 'Holiday Challenge'],
+            ]),
         ];
+    }
+
+    /**
+     * Indicate that the customer challenge is active.
+     */
+    public function active(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => 'active',
+            'started_at' => now(),
+            'expires_at' => now()->addDays(7),
+        ]);
+    }
+
+    /**
+     * Indicate that the customer challenge is completed.
+     */
+    public function completed(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => 'completed',
+            'started_at' => now()->subDays(5),
+            'completed_at' => now(),
+            'progress_percentage' => 100,
+            'progress_current' => $this->faker->numberBetween(10, 100),
+        ]);
     }
 } 

@@ -237,4 +237,70 @@ final class Order extends Model
     {
         return $query->where('type', 'pickup');
     }
+
+    /**
+     * Get POS order mappings for this order.
+     */
+    public function posOrderMappings(): HasMany
+    {
+        return $this->hasMany(PosOrderMapping::class, 'foodhub_order_id');
+    }
+
+    /**
+     * Sync order to POS system.
+     */
+    public function syncToPOS(string $posType): array
+    {
+        $posIntegrationService = app(\App\Services\POSIntegrationService::class);
+        return $posIntegrationService->createPOSOrder($this, $posType);
+    }
+
+    /**
+     * Check if order is synced to POS.
+     */
+    public function isSyncedToPOS(string $posType): bool
+    {
+        return $this->posOrderMappings()
+            ->where('pos_type', $posType)
+            ->where('sync_status', 'synced')
+            ->exists();
+    }
+
+    /**
+     * Get POS order ID for specific POS type.
+     */
+    public function getPOSOrderId(string $posType): ?string
+    {
+        $mapping = $this->posOrderMappings()
+            ->where('pos_type', $posType)
+            ->first();
+
+        return $mapping?->pos_order_id;
+    }
+
+    /**
+     * Get POS sync status for specific POS type.
+     */
+    public function getPOSSyncStatus(string $posType): ?string
+    {
+        $mapping = $this->posOrderMappings()
+            ->where('pos_type', $posType)
+            ->first();
+
+        return $mapping?->sync_status;
+    }
+
+    /**
+     * Update POS sync status.
+     */
+    public function updatePOSSyncStatus(string $posType, string $status): void
+    {
+        $mapping = $this->posOrderMappings()
+            ->where('pos_type', $posType)
+            ->first();
+
+        if ($mapping) {
+            $mapping->update(['sync_status' => $status]);
+        }
+    }
 }

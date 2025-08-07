@@ -20,7 +20,8 @@ class BranchMenuItemTest extends TestCase
         $branchItem = new BranchMenuItem();
         $this->assertEquals([
             'restaurant_branch_id', 'menu_item_id', 'price', 'is_available', 'is_featured',
-            'sort_order', 'settings',
+            'sort_order', 'settings', 'stock_quantity', 'min_stock_threshold', 'track_inventory',
+            'last_stock_update', 'stock_status', 'kitchen_capacity', 'max_daily_orders', 'time_schedules',
         ], $branchItem->getFillable());
     }
 

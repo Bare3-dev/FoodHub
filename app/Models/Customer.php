@@ -103,6 +103,14 @@ final class Customer extends Authenticatable
     }
 
     /**
+     * Get the customer's challenges.
+     */
+    public function customerChallenges(): HasMany
+    {
+        return $this->hasMany(CustomerChallenge::class);
+    }
+
+    /**
      * Get the customer's spin results.
      */
     public function spinResults(): HasMany

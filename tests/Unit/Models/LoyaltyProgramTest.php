@@ -56,12 +56,6 @@ final class LoyaltyProgramTest extends TestCase
             'loyalty_program_id' => $loyaltyProgram->id
         ]);
         $this->assertTrue($loyaltyProgram->stampCards->contains($stampCard));
-
-        // Test customer challenges relationship
-        $customerChallenge = CustomerChallenge::factory()->create([
-            'loyalty_program_id' => $loyaltyProgram->id
-        ]);
-        $this->assertTrue($loyaltyProgram->customerChallenges->contains($customerChallenge));
     }
 
     /**

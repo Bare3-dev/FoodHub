@@ -29,7 +29,7 @@ use Carbon\Carbon;
  * - Comprehensive caching and invalidation
  * - Security logging and audit trails
  */
-final class ConfigurationService
+class ConfigurationService
 {
     /**
      * Cache TTL for configuration data (in seconds)

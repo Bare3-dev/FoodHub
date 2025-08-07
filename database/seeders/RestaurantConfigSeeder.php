@@ -153,7 +153,7 @@ final class RestaurantConfigSeeder extends Seeder
             ],
             [
                 'config_key' => 'payment_gateway_key',
-                'config_value' => 'sk_test_' . str_random(24),
+                'config_value' => 'sk_test_' . \Illuminate\Support\Str::random(24),
                 'data_type' => 'string',
                 'description' => 'Payment gateway API key',
                 'is_sensitive' => true,
