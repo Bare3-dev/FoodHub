@@ -127,6 +127,19 @@ class ConfigurationService
                 $this->validateConfigKey($key);
                 $this->validateConfigValue($value);
                 
+                // Call specific validation methods for known config types
+                if ($key === 'operating_hours' && is_array($value)) {
+                    $this->validateOperatingHours($value);
+                }
+                
+                if (str_starts_with($key, 'loyalty_') && is_array($value)) {
+                    if ($key === 'loyalty_spin_wheel_probabilities') {
+                        $this->validateSpinWheelProbabilities($value);
+                    } elseif ($key === 'loyalty_tier_thresholds') {
+                        $this->validateTierThresholds($value);
+                    }
+                }
+                
                 $dataType = $this->determineDataType($value);
                 $isSensitive = $this->isSensitiveConfig($key);
                 $isEncrypted = $isSensitive;
@@ -177,6 +190,11 @@ class ConfigurationService
     public function getBranchConfig(RestaurantBranch $branch, ?string $key = null): mixed
     {
         try {
+            // Ensure restaurant relationship is loaded
+            if (!$branch->relationLoaded('restaurant')) {
+                $branch->load('restaurant');
+            }
+            
             $cacheKey = "branch_config_{$branch->id}" . ($key ? "_$key" : '');
             
             return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($branch, $key) {
@@ -461,6 +479,31 @@ class ConfigurationService
             if (abs($totalProbability - 1.0) > 0.01) {
                 throw new BusinessLogicException('Spin wheel probabilities must sum to 1.0');
             }
+        }
+    }
+
+    /**
+     * Validate spin wheel probabilities
+     */
+    private function validateSpinWheelProbabilities(array $probabilities): void
+    {
+        $totalProbability = array_sum($probabilities);
+        if (abs($totalProbability - 1.0) > 0.01) {
+            throw new BusinessLogicException('Spin wheel probabilities must sum to 1.0');
+        }
+    }
+
+    /**
+     * Validate tier thresholds
+     */
+    private function validateTierThresholds(array $thresholds): void
+    {
+        $previousThreshold = 0;
+        foreach ($thresholds as $tier => $threshold) {
+            if ($threshold < $previousThreshold) {
+                throw new BusinessLogicException("Invalid tier threshold for $tier");
+            }
+            $previousThreshold = $threshold;
         }
     }
 

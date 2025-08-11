@@ -14,6 +14,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
@@ -48,8 +49,8 @@ final class FileUploadServiceTest extends TestCase
 
 
 
-    /** @test */
-    public function it_can_upload_menu_item_image(): void
+    #[Test]
+    public function test_can_upload_menu_item_image(): void
     {
         $file = UploadedFile::fake()->create('menu-item.jpg', 1000, 'image/jpeg');
         
@@ -75,8 +76,8 @@ final class FileUploadServiceTest extends TestCase
             "File not found at path: {$filePath}. Image URL: {$imageUrl}. {$debugInfo}");
     }
 
-    /** @test */
-    public function it_can_upload_restaurant_logo(): void
+    #[Test]
+    public function test_can_upload_restaurant_logo(): void
     {
         $file = UploadedFile::fake()->create('logo.png', 1000, 'image/png');
         
@@ -96,8 +97,8 @@ final class FileUploadServiceTest extends TestCase
         ));
     }
 
-    /** @test */
-    public function it_can_upload_user_avatar(): void
+    #[Test]
+    public function test_can_upload_user_avatar(): void
     {
         $file = UploadedFile::fake()->create('avatar.jpg', 1000, 'image/jpeg');
         
@@ -117,8 +118,8 @@ final class FileUploadServiceTest extends TestCase
         ));
     }
 
-    /** @test */
-    public function it_rejects_invalid_file_types(): void
+    #[Test]
+    public function test_rejects_invalid_file_types(): void
     {
         $file = UploadedFile::fake()->create('document.pdf', 1000);
         
@@ -128,8 +129,8 @@ final class FileUploadServiceTest extends TestCase
         $this->fileUploadService->uploadMenuItemImage($this->menuItem, $file);
     }
 
-    /** @test */
-    public function it_rejects_files_exceeding_size_limit(): void
+    #[Test]
+    public function test_rejects_files_exceeding_size_limit(): void
     {
         // Create a large file to test size limits
         $file = UploadedFile::fake()->create('large-image.jpg', 6 * 1024 * 1024, 'image/jpeg');
@@ -140,8 +141,8 @@ final class FileUploadServiceTest extends TestCase
         $this->fileUploadService->uploadMenuItemImage($this->menuItem, $file);
     }
 
-    /** @test */
-    public function it_rejects_corrupted_image_files(): void
+    #[Test]
+    public function test_rejects_corrupted_image_files(): void
     {
         // Create a service instance without mocking for this test
         $service = new FileUploadService();
@@ -160,8 +161,8 @@ final class FileUploadServiceTest extends TestCase
         $service->uploadMenuItemImage($this->menuItem, $file);
     }
 
-    /** @test */
-    public function it_can_delete_file(): void
+    #[Test]
+    public function test_can_delete_file(): void
     {
         // First upload a file
         $file = UploadedFile::fake()->create('test.jpg', 1000, 'image/jpeg');
@@ -177,16 +178,16 @@ final class FileUploadServiceTest extends TestCase
         $this->assertFalse(Storage::disk('public')->exists($filePath));
     }
 
-    /** @test */
-    public function it_returns_false_when_deleting_nonexistent_file(): void
+    #[Test]
+    public function test_returns_false_when_deleting_nonexistent_file(): void
     {
         $result = $this->fileUploadService->deleteFile('menu_items/1/nonexistent.jpg');
         
         $this->assertFalse($result);
     }
 
-    /** @test */
-    public function it_rejects_invalid_file_paths_for_deletion(): void
+    #[Test]
+    public function test_rejects_invalid_file_paths_for_deletion(): void
     {
         $this->expectException(BusinessLogicException::class);
         $this->expectExceptionMessage('Failed to delete file: Invalid file path provided');
@@ -194,8 +195,8 @@ final class FileUploadServiceTest extends TestCase
         $this->fileUploadService->deleteFile('../../../etc/passwd');
     }
 
-    /** @test */
-    public function it_generates_thumbnails_for_menu_item_images(): void
+    #[Test]
+    public function test_generates_thumbnails_for_menu_item_images(): void
     {
         $file = UploadedFile::fake()->create('menu-item.jpg', 1000, 'image/jpeg');
         
@@ -212,8 +213,8 @@ final class FileUploadServiceTest extends TestCase
         $this->assertArrayHasKey('large', $lastImage['thumbnails']);
     }
 
-    /** @test */
-    public function it_generates_image_thumbnails_with_custom_sizes(): void
+    #[Test]
+    public function test_generates_image_thumbnails_with_custom_sizes(): void
     {
         $imageUrl = 'https://example.com/test.jpg';
         $sizes = [
@@ -241,8 +242,8 @@ final class FileUploadServiceTest extends TestCase
         }
     }
 
-    /** @test */
-    public function it_handles_thumbnail_generation_failure_gracefully(): void
+    #[Test]
+    public function test_handles_thumbnail_generation_failure_gracefully(): void
     {
         $invalidImageUrl = 'https://example.com/invalid.jpg';
         $sizes = ['small' => [150, 150]];
@@ -254,8 +255,8 @@ final class FileUploadServiceTest extends TestCase
         $this->assertEquals($invalidImageUrl, $thumbnails['small']);
     }
 
-    /** @test */
-    public function it_caches_logo_variants(): void
+    #[Test]
+    public function test_caches_logo_variants(): void
     {
         $file = UploadedFile::fake()->create('logo.png', 1000, 'image/png');
         
@@ -272,8 +273,8 @@ final class FileUploadServiceTest extends TestCase
         $this->assertArrayHasKey('thumbnail', $variants);
     }
 
-    /** @test */
-    public function it_caches_avatar_variants(): void
+    #[Test]
+    public function test_caches_avatar_variants(): void
     {
         $file = UploadedFile::fake()->create('avatar.jpg', 1000, 'image/jpeg');
         
@@ -290,8 +291,8 @@ final class FileUploadServiceTest extends TestCase
         $this->assertArrayHasKey('square_50', $variants);
     }
 
-    /** @test */
-    public function it_clears_caches_when_deleting_files(): void
+    #[Test]
+    public function test_clears_caches_when_deleting_files(): void
     {
         // Upload a restaurant logo
         $file = UploadedFile::fake()->create('logo.png', 1000, 'image/png');
@@ -309,8 +310,8 @@ final class FileUploadServiceTest extends TestCase
         $this->assertFalse(Cache::has($cacheKey));
     }
 
-    /** @test */
-    public function it_generates_unique_filenames(): void
+    #[Test]
+    public function test_generates_unique_filenames(): void
     {
         $file1 = UploadedFile::fake()->create('menu-item.jpg', 1000, 'image/jpeg');
         $file2 = UploadedFile::fake()->create('menu-item.jpg', 1000, 'image/jpeg');
@@ -326,8 +327,8 @@ final class FileUploadServiceTest extends TestCase
         $this->assertNotEquals($filename1, $filename2);
     }
 
-    /** @test */
-    public function it_validates_restaurant_logo_size_limits(): void
+    #[Test]
+    public function test_validates_restaurant_logo_size_limits(): void
     {
         $file = UploadedFile::fake()->create('logo.png', 3 * 1024 * 1024, 'image/png');
         
@@ -337,8 +338,8 @@ final class FileUploadServiceTest extends TestCase
         $this->fileUploadService->uploadRestaurantLogo($this->restaurant, $file);
     }
 
-    /** @test */
-    public function it_validates_user_avatar_size_limits(): void
+    #[Test]
+    public function test_validates_user_avatar_size_limits(): void
     {
         $file = UploadedFile::fake()->create('avatar.jpg', 2 * 1024 * 1024, 'image/jpeg');
         
@@ -348,8 +349,8 @@ final class FileUploadServiceTest extends TestCase
         $this->fileUploadService->uploadUserAvatar($this->user, $file);
     }
 
-    /** @test */
-    public function it_handles_upload_errors_gracefully(): void
+    #[Test]
+    public function test_handles_upload_errors_gracefully(): void
     {
         // Create a file that will pass validation but fail storage
         $file = UploadedFile::fake()->create('menu-item.jpg', 1000, 'image/jpeg');
@@ -363,8 +364,8 @@ final class FileUploadServiceTest extends TestCase
         $this->fileUploadService->uploadMenuItemImage($this->menuItem, $file);
     }
 
-    /** @test */
-    public function it_logs_successful_uploads(): void
+    #[Test]
+    public function test_logs_successful_uploads(): void
     {
         $file = UploadedFile::fake()->create('menu-item.jpg', 1000, 'image/jpeg');
         
@@ -375,8 +376,8 @@ final class FileUploadServiceTest extends TestCase
         $this->assertTrue(true);
     }
 
-    /** @test */
-    public function it_logs_upload_errors(): void
+    #[Test]
+    public function test_logs_upload_errors(): void
     {
         $file = UploadedFile::fake()->create('invalid.txt', 1000);
         

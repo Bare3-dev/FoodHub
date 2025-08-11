@@ -7,6 +7,7 @@ namespace Tests\Unit\Models;
 use App\Models\Restaurant;
 use App\Models\RestaurantConfig;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 final class RestaurantConfigTest extends TestCase
@@ -21,7 +22,7 @@ final class RestaurantConfigTest extends TestCase
         $this->restaurant = Restaurant::factory()->create();
     }
 
-    /** @test */
+    #[Test]
     public function it_can_create_restaurant_config()
     {
         $config = RestaurantConfig::factory()->create([
@@ -43,7 +44,7 @@ final class RestaurantConfigTest extends TestCase
         $this->assertEquals('test_value', $config->config_value);
     }
 
-    /** @test */
+    #[Test]
     public function it_has_restaurant_relationship()
     {
         $config = RestaurantConfig::factory()->create([
@@ -54,7 +55,7 @@ final class RestaurantConfigTest extends TestCase
         $this->assertEquals($this->restaurant->id, $config->restaurant->id);
     }
 
-    /** @test */
+    #[Test]
     public function it_casts_boolean_fields()
     {
         $config = RestaurantConfig::factory()->create([
@@ -66,7 +67,7 @@ final class RestaurantConfigTest extends TestCase
         $this->assertTrue($config->is_sensitive);
     }
 
-    /** @test */
+    #[Test]
     public function it_casts_datetime_fields()
     {
         $config = RestaurantConfig::factory()->create();
@@ -75,7 +76,7 @@ final class RestaurantConfigTest extends TestCase
         $this->assertInstanceOf(\Carbon\Carbon::class, $config->updated_at);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_scope_non_sensitive_configs()
     {
         RestaurantConfig::factory()->create([
@@ -94,7 +95,7 @@ final class RestaurantConfigTest extends TestCase
         $this->assertFalse($nonSensitiveConfigs->first()->is_sensitive);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_scope_sensitive_configs()
     {
         RestaurantConfig::factory()->create([
@@ -113,7 +114,7 @@ final class RestaurantConfigTest extends TestCase
         $this->assertTrue($sensitiveConfigs->first()->is_sensitive);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_scope_encrypted_configs()
     {
         RestaurantConfig::factory()->create([
@@ -132,7 +133,7 @@ final class RestaurantConfigTest extends TestCase
         $this->assertTrue($encryptedConfigs->first()->is_encrypted);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_scope_non_encrypted_configs()
     {
         RestaurantConfig::factory()->create([
@@ -151,7 +152,7 @@ final class RestaurantConfigTest extends TestCase
         $this->assertFalse($nonEncryptedConfigs->first()->is_encrypted);
     }
 
-    /** @test */
+    #[Test]
     public function it_has_unique_constraint_on_restaurant_and_key()
     {
         RestaurantConfig::factory()->create([
@@ -167,7 +168,7 @@ final class RestaurantConfigTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_have_different_keys_for_same_restaurant()
     {
         RestaurantConfig::factory()->create([
@@ -183,7 +184,7 @@ final class RestaurantConfigTest extends TestCase
         $this->assertDatabaseCount('restaurant_configs', 2);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_have_same_key_for_different_restaurants()
     {
         $restaurant2 = Restaurant::factory()->create();
@@ -201,7 +202,7 @@ final class RestaurantConfigTest extends TestCase
         $this->assertDatabaseCount('restaurant_configs', 2);
     }
 
-    /** @test */
+    #[Test]
     public function it_supports_different_data_types()
     {
         $stringConfig = RestaurantConfig::factory()->create([
@@ -236,7 +237,7 @@ final class RestaurantConfigTest extends TestCase
         $this->assertEquals('array', $arrayConfig->data_type);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_be_created_with_factory_states()
     {
         $encryptedConfig = RestaurantConfig::factory()->encrypted()->create();
@@ -247,7 +248,7 @@ final class RestaurantConfigTest extends TestCase
         $this->assertTrue($sensitiveConfig->is_encrypted); // Sensitive configs are also encrypted
     }
 
-    /** @test */
+    #[Test]
     public function it_can_be_created_with_specific_config_types()
     {
         $loyaltyConfig = RestaurantConfig::factory()->loyaltyPointsPerCurrency()->create();

@@ -83,9 +83,10 @@ class PricingService
     public function calculateOrderTax(Order $order): float
     {
         $subtotal = (float) $order->subtotal;
+        $deliveryFee = (float) $order->delivery_fee;
         $taxRate = 0.15; // 15% VAT for Saudi Arabia
         
-        return round($subtotal * $taxRate, 2);
+        return round(($subtotal + $deliveryFee) * $taxRate, 2);
     }
 
     /**

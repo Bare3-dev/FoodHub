@@ -9,13 +9,14 @@ use App\Models\Restaurant;
 use App\Models\MenuCategory;
 use App\Models\BranchMenuItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class MenuItemTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function it_has_expected_fillable_attributes()
     {
         $item = new MenuItem();
@@ -27,7 +28,7 @@ class MenuItemTest extends TestCase
         ], $item->getFillable());
     }
 
-    /** @test */
+    #[Test]
     public function it_casts_attributes_properly()
     {
         $item = MenuItem::factory()->create([
@@ -58,7 +59,7 @@ class MenuItemTest extends TestCase
         $this->assertNotNull($item->updated_at);
     }
 
-    /** @test */
+    #[Test]
     public function it_belongs_to_a_restaurant()
     {
         $restaurant = Restaurant::factory()->create();
@@ -67,7 +68,7 @@ class MenuItemTest extends TestCase
         $this->assertEquals($restaurant->id, $item->restaurant->id);
     }
 
-    /** @test */
+    #[Test]
     public function it_belongs_to_a_category()
     {
         $category = MenuCategory::factory()->create();
@@ -76,7 +77,7 @@ class MenuItemTest extends TestCase
         $this->assertEquals($category->id, $item->category->id);
     }
 
-    /** @test */
+    #[Test]
     public function it_has_many_branch_menu_items()
     {
         $item = MenuItem::factory()->create();
@@ -84,7 +85,7 @@ class MenuItemTest extends TestCase
         $this->assertTrue($item->branchMenuItems->contains($branchItem));
     }
 
-    /** @test */
+    #[Test]
     public function it_can_scope_available()
     {
         $available = MenuItem::factory()->create(['is_available' => true]);

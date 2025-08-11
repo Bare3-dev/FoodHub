@@ -135,8 +135,8 @@ final class CustomerChallenge extends Model
         }
         
         // Check if expires within 24 hours from now
-        $now = now();
-        $hoursUntilExpiry = $this->expires_at->diffInHours($now, false);
+        $now = now(); // Changed from Carbon::now() back to now()
+        $hoursUntilExpiry = $now->diffInHours($this->expires_at, false);
         
         // If the expiry time is in the past, return false
         if ($hoursUntilExpiry < 0) {

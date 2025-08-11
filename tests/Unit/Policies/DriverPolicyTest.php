@@ -10,6 +10,7 @@ use App\Models\RestaurantBranch;
 use App\Models\DriverWorkingZone;
 use App\Policies\DriverPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 
 class DriverPolicyTest extends TestCase
 {
@@ -93,7 +94,7 @@ class DriverPolicyTest extends TestCase
         $this->policy = new DriverPolicy();
     }
 
-    /** @test */
+    #[Test]
     public function super_admin_can_perform_all_actions()
     {
         // Super admin should have full access to all drivers
@@ -106,7 +107,7 @@ class DriverPolicyTest extends TestCase
         $this->assertTrue($this->policy->forceDelete($this->superAdmin, $this->driver));
     }
 
-    /** @test */
+    #[Test]
     public function restaurant_owner_can_view_and_update_drivers()
     {
         // Restaurant owner should be able to view and update drivers
@@ -121,7 +122,7 @@ class DriverPolicyTest extends TestCase
         $this->assertFalse($this->policy->forceDelete($this->restaurantOwner, $this->driver));
     }
 
-    /** @test */
+    #[Test]
     public function branch_manager_can_manage_drivers()
     {
         // Branch manager should have full access to drivers
@@ -134,7 +135,7 @@ class DriverPolicyTest extends TestCase
         $this->assertTrue($this->policy->forceDelete($this->branchManager, $this->driver));
     }
 
-    /** @test */
+    #[Test]
     public function cashier_can_view_drivers()
     {
         // Cashier should only be able to view drivers
@@ -149,7 +150,7 @@ class DriverPolicyTest extends TestCase
         $this->assertFalse($this->policy->forceDelete($this->cashier, $this->driver));
     }
 
-    /** @test */
+    #[Test]
     public function customer_service_can_view_drivers()
     {
         // Customer service should only be able to view drivers
@@ -164,7 +165,7 @@ class DriverPolicyTest extends TestCase
         $this->assertFalse($this->policy->forceDelete($this->customerService, $this->driver));
     }
 
-    /** @test */
+    #[Test]
     public function kitchen_staff_cannot_manage_drivers()
     {
         // Kitchen staff should not have access to driver management
@@ -177,7 +178,7 @@ class DriverPolicyTest extends TestCase
         $this->assertFalse($this->policy->forceDelete($this->kitchenStaff, $this->driver));
     }
 
-    /** @test */
+    #[Test]
     public function inactive_users_cannot_access_drivers()
     {
         $inactiveUser = User::factory()->create([
@@ -192,7 +193,7 @@ class DriverPolicyTest extends TestCase
         $this->assertFalse($this->policy->delete($inactiveUser, $this->driver));
     }
 
-    /** @test */
+    #[Test]
     public function unauthorized_users_cannot_access_drivers()
     {
         $unauthorizedUser = User::factory()->create([
@@ -207,7 +208,7 @@ class DriverPolicyTest extends TestCase
         $this->assertFalse($this->policy->delete($unauthorizedUser, $this->driver));
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_null_user_gracefully()
     {
         $this->assertFalse($this->policy->viewAny(null));
@@ -217,7 +218,7 @@ class DriverPolicyTest extends TestCase
         $this->assertFalse($this->policy->delete(null, $this->driver));
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_null_driver_gracefully()
     {
         $this->assertFalse($this->policy->view($this->branchManager, null));
@@ -227,7 +228,7 @@ class DriverPolicyTest extends TestCase
         $this->assertFalse($this->policy->forceDelete($this->branchManager, null));
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_driver_with_inactive_status()
     {
         $inactiveDriver = Driver::factory()->create([
@@ -240,7 +241,7 @@ class DriverPolicyTest extends TestCase
         $this->assertTrue($this->policy->delete($this->branchManager, $inactiveDriver));
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_driver_with_unavailable_status()
     {
         $unavailableDriver = Driver::factory()->create([
@@ -253,7 +254,7 @@ class DriverPolicyTest extends TestCase
         $this->assertTrue($this->policy->delete($this->branchManager, $unavailableDriver));
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_driver_with_working_zone()
     {
         // Create driver without working zone (since it's not in the migration)

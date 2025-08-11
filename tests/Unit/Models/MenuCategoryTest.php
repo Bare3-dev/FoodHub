@@ -8,13 +8,14 @@ use App\Models\MenuCategory;
 use App\Models\Restaurant;
 use App\Models\MenuItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class MenuCategoryTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function it_has_expected_fillable_attributes()
     {
         $category = new MenuCategory();
@@ -24,7 +25,7 @@ class MenuCategoryTest extends TestCase
         ], $category->getFillable());
     }
 
-    /** @test */
+    #[Test]
     public function it_casts_attributes_properly()
     {
         $category = MenuCategory::factory()->create([
@@ -37,7 +38,7 @@ class MenuCategoryTest extends TestCase
         $this->assertNotNull($category->updated_at);
     }
 
-    /** @test */
+    #[Test]
     public function it_belongs_to_a_restaurant()
     {
         $restaurant = Restaurant::factory()->create();
@@ -46,7 +47,7 @@ class MenuCategoryTest extends TestCase
         $this->assertEquals($restaurant->id, $category->restaurant->id);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_have_a_parent_category()
     {
         $parent = MenuCategory::factory()->create();
@@ -55,7 +56,7 @@ class MenuCategoryTest extends TestCase
         $this->assertEquals($parent->id, $child->parentCategory->id);
     }
 
-    /** @test */
+    #[Test]
     public function it_can_have_subcategories()
     {
         $parent = MenuCategory::factory()->create();
@@ -63,7 +64,7 @@ class MenuCategoryTest extends TestCase
         $this->assertTrue($parent->subCategories->contains($child));
     }
 
-    /** @test */
+    #[Test]
     public function it_has_many_menu_items()
     {
         $category = MenuCategory::factory()->create();
@@ -71,7 +72,7 @@ class MenuCategoryTest extends TestCase
         $this->assertTrue($category->menuItems->contains($item));
     }
 
-    /** @test */
+    #[Test]
     public function it_can_scope_active()
     {
         $active = MenuCategory::factory()->create(['is_active' => true]);
@@ -81,7 +82,7 @@ class MenuCategoryTest extends TestCase
         $this->assertFalse($scoped->contains($inactive));
     }
 
-    /** @test */
+    #[Test]
     public function it_generates_unique_slug_per_restaurant()
     {
         $restaurant = Restaurant::factory()->create();

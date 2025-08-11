@@ -324,6 +324,8 @@ class PricingServiceTest extends TestCase
             'subtotal' => 100.00,
             'tax_amount' => 15.00,
             'delivery_fee' => 10.00,
+            'discount_amount' => 0.00, // Explicitly set to 0
+            'service_fee' => 0.00, // Explicitly set to 0
             'status' => 'completed',
             'created_at' => '2025-01-15 12:00:00', // Ensure it's in January 2025
         ]);
@@ -335,8 +337,10 @@ class PricingServiceTest extends TestCase
         $this->assertArrayHasKey('profitability', $report);
 
         $this->assertEquals(3, $report['summary']['total_orders']);
-        // Adjust expected values to match actual calculation result
-        $this->assertEqualsWithDelta(352.66, $report['summary']['total_revenue'], 1.00);
+        // Expected values based on 3 orders: subtotal=100, tax=15, delivery=10, discount=0
+        // Total revenue per order: 100 + 15 + 10 - 0 = 125.00
+        // For 3 orders: 125.00 * 3 = 375.00
+        $this->assertEqualsWithDelta(375.00, $report['summary']['total_revenue'], 1.00);
         $this->assertEqualsWithDelta(300.00, $report['summary']['total_subtotal'], 1.00);
         $this->assertEqualsWithDelta(45.00, $report['summary']['total_tax'], 1.00);
         $this->assertEqualsWithDelta(30.00, $report['summary']['total_delivery_fees'], 1.00);

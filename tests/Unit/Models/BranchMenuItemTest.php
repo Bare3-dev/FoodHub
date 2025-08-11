@@ -8,13 +8,14 @@ use App\Models\BranchMenuItem;
 use App\Models\RestaurantBranch;
 use App\Models\MenuItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class BranchMenuItemTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function it_has_expected_fillable_attributes()
     {
         $branchItem = new BranchMenuItem();
@@ -25,7 +26,7 @@ class BranchMenuItemTest extends TestCase
         ], $branchItem->getFillable());
     }
 
-    /** @test */
+    #[Test]
     public function it_casts_attributes_properly()
     {
         $branchItem = BranchMenuItem::factory()->create([
@@ -38,7 +39,7 @@ class BranchMenuItemTest extends TestCase
         $this->assertNotNull($branchItem->updated_at);
     }
 
-    /** @test */
+    #[Test]
     public function it_belongs_to_a_branch()
     {
         $branch = RestaurantBranch::factory()->create();
@@ -47,7 +48,7 @@ class BranchMenuItemTest extends TestCase
         $this->assertEquals($branch->id, $branchItem->branch->id);
     }
 
-    /** @test */
+    #[Test]
     public function it_belongs_to_a_restaurant_branch_alias()
     {
         $branch = RestaurantBranch::factory()->create();
@@ -56,7 +57,7 @@ class BranchMenuItemTest extends TestCase
         $this->assertEquals($branch->id, $branchItem->restaurantBranch->id);
     }
 
-    /** @test */
+    #[Test]
     public function it_belongs_to_a_menu_item()
     {
         $menuItem = MenuItem::factory()->create();

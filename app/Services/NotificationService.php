@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\Notification;
 use App\Models\User;
+use App\Models\Customer;
 use App\Models\BranchMenuItem;
 use App\Models\Restaurant;
 use App\Models\Order;
@@ -23,6 +24,26 @@ use Carbon\Carbon;
 class NotificationService
 {
     /**
+     * Create challenge notification
+     */
+    public function createChallengeNotification(User|Customer $user, string $type, string $title, string $message, array $data = [], string $category = 'challenge'): Notification
+    {
+        return Notification::create([
+            'type' => $type,
+            'notifiable_type' => get_class($user),
+            'notifiable_id' => $user->id,
+            'data' => array_merge($data, [
+                'title' => $title,
+                'message' => $message,
+                'priority' => 'medium',
+                'category' => $category,
+                'action_url' => "/challenges",
+                'expires_at' => now()->addDays(30)->toISOString(),
+            ]),
+        ]);
+    }
+
+    /**
      * Create a low stock notification
      */
     public function createLowStockNotification(BranchMenuItem $branchMenuItem, User $user): Notification
@@ -30,11 +51,12 @@ class NotificationService
         $urgency = $this->determineLowStockUrgency($branchMenuItem);
         
         return Notification::create([
-            'user_id' => $user->id,
             'type' => 'low_stock',
-            'title' => 'Low Stock Alert',
-            'message' => "Item '{$branchMenuItem->menuItem->name}' at {$branchMenuItem->branch->name} is running low on stock. Current quantity: {$branchMenuItem->stock_quantity}",
+            'notifiable_type' => get_class($user),
+            'notifiable_id' => $user->id,
             'data' => [
+                'title' => 'Low Stock Alert',
+                'message' => "Item '{$branchMenuItem->menuItem->name}' at {$branchMenuItem->branch->name} is running low on stock. Current quantity: {$branchMenuItem->stock_quantity}",
                 'branch_menu_item_id' => $branchMenuItem->id,
                 'item_name' => $branchMenuItem->menuItem->name,
                 'branch_name' => $branchMenuItem->branch->name,
@@ -42,11 +64,11 @@ class NotificationService
                 'min_threshold' => $branchMenuItem->min_stock_threshold,
                 'reorder_suggestion' => $branchMenuItem->getReorderSuggestion(),
                 'urgency' => $urgency,
+                'priority' => $this->getPriorityFromUrgency($urgency),
+                'category' => 'inventory',
+                'action_url' => "/inventory/restock/{$branchMenuItem->id}",
+                'expires_at' => now()->addDays(7)->toISOString(),
             ],
-            'priority' => $this->getPriorityFromUrgency($urgency),
-            'category' => 'inventory',
-            'action_url' => "/inventory/restock/{$branchMenuItem->id}",
-            'expires_at' => now()->addDays(7),
         ]);
     }
 
@@ -56,20 +78,21 @@ class NotificationService
     public function createOutOfStockNotification(BranchMenuItem $branchMenuItem, User $user): Notification
     {
         return Notification::create([
-            'user_id' => $user->id,
             'type' => 'out_of_stock',
-            'title' => 'Out of Stock Alert',
-            'message' => "Item '{$branchMenuItem->menuItem->name}' at {$branchMenuItem->branch->name} is completely out of stock.",
+            'notifiable_type' => get_class($user),
+            'notifiable_id' => $user->id,
             'data' => [
+                'title' => 'Out of Stock Alert',
+                'message' => "Item '{$branchMenuItem->menuItem->name}' at {$branchMenuItem->branch->name} is completely out of stock.",
                 'branch_menu_item_id' => $branchMenuItem->id,
                 'item_name' => $branchMenuItem->menuItem->name,
                 'branch_name' => $branchMenuItem->branch->name,
                 'reorder_suggestion' => $branchMenuItem->getReorderSuggestion(),
+                'priority' => 'critical',
+                'category' => 'inventory',
+                'action_url' => "/inventory/restock/{$branchMenuItem->id}",
+                'expires_at' => now()->addDays(3)->toISOString(),
             ],
-            'priority' => 'critical',
-            'category' => 'inventory',
-            'action_url' => "/inventory/restock/{$branchMenuItem->id}",
-            'expires_at' => now()->addDays(3),
         ]);
     }
 
@@ -84,20 +107,21 @@ class NotificationService
             : "Inventory synchronization failed for {$restaurant->name}: {$error}";
 
         return Notification::create([
-            'user_id' => $user->id,
             'type' => 'inventory_sync',
-            'title' => $title,
-            'message' => $message,
+            'notifiable_type' => get_class($user),
+            'notifiable_id' => $user->id,
             'data' => [
+                'title' => $title,
+                'message' => $message,
                 'restaurant_id' => $restaurant->id,
                 'restaurant_name' => $restaurant->name,
                 'status' => $status,
                 'error' => $error,
+                'priority' => $status === 'success' ? 'low' : 'high',
+                'category' => 'inventory',
+                'action_url' => "/inventory/sync/{$restaurant->id}",
+                'expires_at' => now()->addDays(1)->toISOString(),
             ],
-            'priority' => $status === 'success' ? 'low' : 'high',
-            'category' => 'inventory',
-            'action_url' => "/inventory/sync/{$restaurant->id}",
-            'expires_at' => now()->addDays(1),
         ]);
     }
 
@@ -106,7 +130,8 @@ class NotificationService
      */
     public function getUnreadNotifications(User $user, int $limit = 50): Collection
     {
-        return Notification::where('user_id', $user->id)
+        return Notification::where('notifiable_type', get_class($user))
+            ->where('notifiable_id', $user->id)
             ->unread()
             ->where(function ($query) {
                 $query->whereNull('expires_at')
@@ -130,7 +155,8 @@ class NotificationService
      */
     public function markAllAsRead(User $user): int
     {
-        return Notification::where('user_id', $user->id)
+        return Notification::where('notifiable_type', get_class($user))
+            ->where('notifiable_id', $user->id)
             ->unread()
             ->update(['read_at' => now()]);
     }
@@ -148,7 +174,8 @@ class NotificationService
      */
     public function getUnreadCount(User $user): int
     {
-        return Notification::where('user_id', $user->id)
+        return Notification::where('notifiable_type', get_class($user))
+            ->where('notifiable_id', $user->id)
             ->unread()
             ->where(function ($query) {
                 $query->whereNull('expires_at')
@@ -228,21 +255,22 @@ class NotificationService
 
         foreach ($adminUsers as $admin) {
             Notification::create([
-                'user_id' => $admin->id,
                 'type' => 'webhook_failure',
-                'title' => 'Webhook Processing Failed',
-                'message' => "Webhook processing failed for {$service} service. Event: {$event}. Error: {$errorMessage}",
+                'notifiable_type' => get_class($admin),
+                'notifiable_id' => $admin->id,
                 'data' => [
+                    'title' => 'Webhook Processing Failed',
+                    'message' => "Webhook processing failed for {$service} service. Event: {$event}. Error: {$errorMessage}",
                     'service' => $service,
                     'event' => $event,
                     'payload' => $payload,
                     'error' => $errorMessage,
                     'timestamp' => now()->toISOString(),
+                    'priority' => 'critical',
+                    'category' => 'system',
+                    'action_url' => "/admin/webhooks/logs",
+                    'expires_at' => now()->addDays(1)->toISOString(),
                 ],
-                'priority' => 'critical',
-                'category' => 'system',
-                'action_url' => "/admin/webhooks/logs",
-                'expires_at' => now()->addDays(1),
             ]);
         }
     }

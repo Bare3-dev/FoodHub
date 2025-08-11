@@ -27,9 +27,7 @@ class CustomerChallengeIntegrationTest extends TestCase
         parent::setUp();
 
         $this->user = User::factory()->create();
-        $this->customer = Customer::factory()->create([
-            'user_id' => $this->user->id,
-        ]);
+        $this->customer = Customer::factory()->create();
 
         $this->challengeService = app(CustomerChallengeService::class);
 

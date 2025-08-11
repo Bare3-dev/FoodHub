@@ -33,7 +33,12 @@ class SquarePOSControllerTest extends TestCase
         $this->integration = PosIntegration::factory()->create([
             'restaurant_id' => $this->restaurant->id,
             'pos_type' => 'square',
-            'is_active' => true
+            'is_active' => true,
+            'configuration' => [
+                'api_url' => 'https://api.square.com',
+                'access_token' => 'test_token',
+                'merchant_id' => 'test_merchant'
+            ]
         ]);
     }
 
@@ -44,6 +49,11 @@ class SquarePOSControllerTest extends TestCase
         $order = Order::factory()->create([
             'restaurant_id' => $this->restaurant->id,
             'status' => 'pending'
+        ]);
+
+        // Mock the HTTP request to Square API
+        Http::fake([
+            '*' => Http::response(['order' => ['id' => 'pos_order_123']], 200)
         ]);
 
         $response = $this->postJson("/api/pos/square/orders/{$order->id}/sync");
@@ -67,7 +77,16 @@ class SquarePOSControllerTest extends TestCase
         $this->actingAs($this->user);
 
         Http::fake([
-            'square.com/api/*' => Http::response(['success' => true], 200)
+            'https://api.square.com/*' => Http::response(['objects' => [
+                [
+                    'id' => 'item_1',
+                    'name' => 'Test Item',
+                    'price' => 10.99,
+                    'description' => 'Test description',
+                    'is_available' => true,
+                    'category' => 'Test Category'
+                ]
+            ]], 200)
         ]);
 
         $response = $this->postJson("/api/pos/square/restaurants/{$this->restaurant->id}/menu/sync");
@@ -84,7 +103,14 @@ class SquarePOSControllerTest extends TestCase
         $this->actingAs($this->user);
 
         Http::fake([
-            'square.com/api/*' => Http::response(['success' => true], 200)
+            'https://api.square.com/*' => Http::response(['objects' => [
+                [
+                    'id' => 'item_1',
+                    'name' => 'Test Item',
+                    'inventory_count' => 50,
+                    'is_available' => true
+                ]
+            ]], 200)
         ]);
 
         $response = $this->postJson("/api/pos/square/restaurants/{$this->restaurant->id}/inventory/sync");

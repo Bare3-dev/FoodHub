@@ -52,9 +52,9 @@ final class PricingController extends Controller
                 'success' => true,
                 'data' => [
                     'order_id' => $order->id,
-                    'tax_amount' => $taxAmount,
+                    'tax_amount' => (float) $taxAmount,
                     'tax_rate' => 15.00, // Saudi VAT rate
-                    'taxable_amount' => $order->subtotal + $order->delivery_fee,
+                    'taxable_amount' => (float) ($order->subtotal + $order->delivery_fee),
                 ],
                 'message' => 'Tax calculated successfully',
             ]);
@@ -79,6 +79,14 @@ final class PricingController extends Controller
         $order = Order::findOrFail($request->order_id);
         $address = CustomerAddress::findOrFail($request->address_id);
         
+        // Check if coordinates are available
+        if (!$address->latitude || !$address->longitude || !$order->branch->latitude || !$order->branch->longitude) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Coordinates are required for delivery fee calculation',
+            ], 400);
+        }
+        
         try {
             $deliveryFee = $this->pricingService->calculateDeliveryFee($order, $address);
             
@@ -87,8 +95,8 @@ final class PricingController extends Controller
                 'data' => [
                     'order_id' => $order->id,
                     'address_id' => $address->id,
-                    'delivery_fee' => $deliveryFee,
-                    'distance' => $this->calculateDistance($address, $order->branch),
+                    'delivery_fee' => (float) $deliveryFee,
+                    'distance' => (float) $this->calculateDistance($address, $order->branch),
                 ],
                 'message' => 'Delivery fee calculated successfully',
             ]);
@@ -167,10 +175,10 @@ final class PricingController extends Controller
                 'data' => [
                     'menu_item_id' => $item->id,
                     'branch_id' => $branch->id,
-                    'base_price' => $item->price,
-                    'final_price' => $price,
+                    'base_price' => (float) $item->price,
+                    'final_price' => (float) $price,
                     'customizations' => $customizations,
-                    'customization_cost' => $price - $item->price,
+                    'customization_cost' => (float) ($price - $item->price),
                 ],
                 'message' => 'Item price calculated successfully',
             ]);
@@ -191,7 +199,7 @@ final class PricingController extends Controller
         $period = Carbon::createFromFormat('Y-m', $request->period);
         
         try {
-            $report = $this->pricingService->generatePricingReport($restaurant, $period);
+            $report = $this->pricingService->generateMonthlyPricingReport($restaurant, $period->format('Y-m'));
             
             return response()->json([
                 'success' => true,
@@ -231,16 +239,16 @@ final class PricingController extends Controller
                 'success' => true,
                 'data' => [
                     'order_id' => $order->id,
-                    'subtotal' => $order->subtotal,
-                    'delivery_fee' => $deliveryFee,
-                    'tax_amount' => $taxAmount,
-                    'discount_amount' => $discountAmount,
-                    'total_amount' => $totalAmount,
+                    'subtotal' => (float) $order->subtotal,
+                    'delivery_fee' => (float) $deliveryFee,
+                    'tax_amount' => (float) $taxAmount,
+                    'discount_amount' => (float) $discountAmount,
+                    'total_amount' => (float) $totalAmount,
                     'breakdown' => [
-                        'items_total' => $order->subtotal,
-                        'delivery_cost' => $deliveryFee,
-                        'tax_cost' => $taxAmount,
-                        'discount_savings' => $discountAmount,
+                        'items_total' => (float) $order->subtotal,
+                        'delivery_cost' => (float) $deliveryFee,
+                        'tax_cost' => (float) $taxAmount,
+                        'discount_savings' => (float) $discountAmount,
                     ],
                 ],
                 'message' => 'Complete pricing calculated successfully',
@@ -316,10 +324,10 @@ final class PricingController extends Controller
             return 0.00;
         }
 
-        $lat1 = deg2rad($address->latitude);
-        $lon1 = deg2rad($address->longitude);
-        $lat2 = deg2rad($branch->latitude);
-        $lon2 = deg2rad($branch->longitude);
+        $lat1 = deg2rad((float) $address->latitude);
+        $lon1 = deg2rad((float) $address->longitude);
+        $lat2 = deg2rad((float) $branch->latitude);
+        $lon2 = deg2rad((float) $branch->longitude);
 
         $dlat = $lat2 - $lat1;
         $dlon = $lon2 - $lon1;

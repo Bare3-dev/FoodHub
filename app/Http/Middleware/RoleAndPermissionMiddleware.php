@@ -27,17 +27,6 @@ class RoleAndPermissionMiddleware
 
         $user = Auth::user();
 
-        // Debug logging for testing
-        if (app()->environment('testing')) {
-            \Log::info('User details', [
-                'user_id' => $user->id,
-                'role' => $user->role,
-                'email' => $user->email,
-                'status' => $user->status,
-                'is_super_admin' => $user->isSuperAdmin(),
-            ]);
-        }
-
         // Always allow SUPER_ADMIN to bypass all checks
         if ($user->isSuperAdmin()) {
             \Log::info('RoleAndPermissionMiddleware SUPER_ADMIN bypass', ['uri' => $request->getRequestUri()]);
@@ -47,9 +36,28 @@ class RoleAndPermissionMiddleware
         $requiredRoles = $roles ? explode('|', $roles) : [];
         $requiredPermissions = $permissions ? explode('|', $permissions) : [];
 
+        // Debug logging for testing
+        if (app()->environment('testing')) {
+            \Log::info('User details', [
+                'user_id' => $user->id,
+                'role' => $user->role,
+                'email' => $user->email,
+                'status' => $user->status,
+                'is_super_admin' => $user->isSuperAdmin(),
+                'required_roles' => $requiredRoles,
+                'has_role_check' => collect($requiredRoles)->map(function ($role) use ($user) {
+                    return [
+                        'role' => $role,
+                        'has_role' => $user->hasRole($role),
+                        'can_access_role' => $user->canAccessRole($role),
+                    ];
+                }),
+            ]);
+        }
+        
         // Check if user has access to any of the required roles using role hierarchy
         $hasRole = empty($requiredRoles) || collect($requiredRoles)->contains(function ($role) use ($user) {
-            return $user->hasRole($role) || $user->canAccessRole($role);
+            return $user->hasRole($role);
         });
         
         // Check if user has all required permissions (if any are specified)

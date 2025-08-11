@@ -19,6 +19,7 @@ final class DatabaseSeeder extends Seeder
         $this->call([
             RestaurantSeeder::class,
             UserRoleSeeder::class,
+            EnhancedPermissionSeeder::class,
             CustomerSeeder::class,
             CustomerAddressSeeder::class,
             MenuSeeder::class,

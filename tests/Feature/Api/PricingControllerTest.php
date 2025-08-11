@@ -325,20 +325,23 @@ class PricingControllerTest extends TestCase
 
     public function test_generate_pricing_report()
     {
-        // Create a restaurant owner user
+        // Create a restaurant owner user associated with the restaurant
         $restaurantOwner = User::factory()->create([
             'role' => 'RESTAURANT_OWNER',
+            'restaurant_id' => $this->restaurant->id,
         ]);
 
-        // Create some orders for the report
+        // Create some orders for the report - orders must be associated with branches
         Order::factory()->count(3)->create([
             'restaurant_id' => $this->restaurant->id,
+            'restaurant_branch_id' => $this->branch->id,
             'subtotal' => 100.00,
             'tax_amount' => 15.00,
             'delivery_fee' => 10.00,
             'discount_amount' => 5.00,
             'total_amount' => 120.00,
             'status' => 'completed',
+            'created_at' => '2024-01-15 12:00:00', // Ensure it's in January 2024
         ]);
 
         $response = $this->actingAs($restaurantOwner)
@@ -353,10 +356,22 @@ class PricingControllerTest extends TestCase
             ]);
 
         $data = $response->json('data');
-        $this->assertArrayHasKey('period', $data);
         $this->assertArrayHasKey('summary', $data);
         $this->assertArrayHasKey('breakdown', $data);
         $this->assertArrayHasKey('profitability', $data);
+        
+        // Check summary data
+        $summary = $data['summary'];
+        $this->assertEquals(3, $summary['total_orders']);
+        $this->assertEquals(360.00, $summary['total_revenue']);
+        $this->assertEquals(300.00, $summary['total_subtotal']);
+        $this->assertEquals(45.00, $summary['total_tax']);
+        $this->assertEquals(30.00, $summary['total_delivery_fees']);
+        $this->assertEquals(15.00, $summary['total_discounts']);
+        
+        // Check profitability data
+        $profitability = $data['profitability'];
+        $this->assertEquals(120.00, $profitability['average_order_value']);
     }
 
     public function test_calculate_tax_invalid_order()

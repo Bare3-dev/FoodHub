@@ -91,6 +91,69 @@ class LoyaltyService
     }
 
     /**
+     * Award loyalty points to a customer for non-order activities (e.g., challenges)
+     */
+    public function awardPoints(Customer $customer, float $points, string $source, array $metadata = []): bool
+    {
+        try {
+            DB::transaction(function () use ($customer, $points, $source, $metadata) {
+                // Get or create customer loyalty points record
+                $customerLoyaltyPoints = CustomerLoyaltyPoint::firstOrCreate(
+                    ['customer_id' => $customer->id],
+                    [
+                        'loyalty_program_id' => LoyaltyProgram::where('is_active', true)->first()?->id,
+                        'current_points' => 0,
+                        'total_points_earned' => 0,
+                        'total_points_redeemed' => 0,
+                        'total_points_expired' => 0,
+                        'is_active' => true,
+                        'last_points_earned_date' => now(),
+                    ]
+                );
+
+                // Update customer loyalty points
+                $customerLoyaltyPoints->update([
+                    'current_points' => $customerLoyaltyPoints->current_points + $points,
+                    'total_points_earned' => $customerLoyaltyPoints->total_points_earned + $points,
+                    'last_points_earned_date' => now()
+                ]);
+
+                // Create loyalty points history record
+                LoyaltyPointsHistory::create([
+                    'customer_loyalty_points_id' => $customerLoyaltyPoints->id,
+                    'transaction_type' => 'earned',
+                    'points_amount' => $points,
+                    'points_balance_after' => $customerLoyaltyPoints->current_points + $points,
+                    'description' => "Points awarded for {$source}",
+                    'source' => $source,
+                    'reference_type' => 'challenge',
+                    'reference_id' => $metadata['challenge_id'] ?? null,
+                    'base_amount' => $points,
+                    'multiplier_applied' => 1.0,
+                    'transaction_details' => array_merge($metadata, [
+                        'source' => $source,
+                        'awarded_at' => now()->toISOString()
+                    ])
+                ]);
+
+                // Handle tier progression after points update
+                $this->handleTierProgression($customerLoyaltyPoints);
+            });
+
+            return true;
+        } catch (\Exception $e) {
+            // Log the error
+            \Log::error('Failed to award loyalty points', [
+                'customer_id' => $customer->id,
+                'points' => $points,
+                'source' => $source,
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
+    }
+
+    /**
      * Process loyalty points for an order
      */
     public function processOrderLoyaltyPoints(Order $order): void

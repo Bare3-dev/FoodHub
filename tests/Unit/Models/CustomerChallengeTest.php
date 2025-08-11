@@ -25,9 +25,9 @@ class CustomerChallengeTest extends TestCase
         $customerChallenge = CustomerChallenge::create([
             'customer_id' => $customer->id,
             'challenge_id' => $challenge->id,
-            'assigned_at' => now(),
+            'assigned_at' => Carbon::now(),
             'progress_target' => 5.0,
-            'expires_at' => now()->addWeek(),
+            'expires_at' => Carbon::now()->addWeek(),
             'status' => 'assigned', // Explicitly set status
         ]);
 
@@ -60,7 +60,7 @@ class CustomerChallengeTest extends TestCase
             'customer_id' => $customer1->id,
             'challenge_id' => $challenge1->id,
             'status' => 'active',
-            'expires_at' => now()->addDay(),
+            'expires_at' => Carbon::now()->addDay(),
         ]);
 
         $this->assertTrue($activeChallenge->isActive());
@@ -70,7 +70,7 @@ class CustomerChallengeTest extends TestCase
             'customer_id' => $customer2->id,
             'challenge_id' => $challenge2->id,
             'status' => 'completed',
-            'expires_at' => now()->addDay(),
+            'expires_at' => Carbon::now()->addDay(),
         ]);
 
         $this->assertFalse($completedChallenge->isActive());
@@ -80,7 +80,7 @@ class CustomerChallengeTest extends TestCase
             'customer_id' => $customer3->id,
             'challenge_id' => $challenge3->id,
             'status' => 'active',
-            'expires_at' => now()->subDay(),
+            'expires_at' => Carbon::now()->subDay(),
         ]);
 
         $this->assertFalse($expiredChallenge->isActive());
@@ -115,7 +115,7 @@ class CustomerChallengeTest extends TestCase
             'status' => 'active',
             'progress_current' => 8,
             'progress_target' => 10,
-            'started_at' => now()->subDays(2),
+            'started_at' => Carbon::now()->subDays(2),
         ]);
 
         // Complete the challenge
@@ -180,7 +180,7 @@ class CustomerChallengeTest extends TestCase
     public function test_get_days_remaining(): void
     {
         $customerChallenge = CustomerChallenge::factory()->create([
-            'expires_at' => now()->addDays(5),
+            'expires_at' => Carbon::now()->addDays(5),
         ]);
 
         $daysRemaining = $customerChallenge->getDaysRemaining();
@@ -229,16 +229,38 @@ class CustomerChallengeTest extends TestCase
      */
     public function test_expires_soon(): void
     {
-        // Use a fixed time to avoid timing issues
-        $fixedTime = Carbon::create(2024, 1, 1, 12, 0, 0);
+        // Use a fixed time to avoid timing issues - ensure UTC timezone
+        $fixedTime = Carbon::create(2024, 1, 1, 12, 0, 0, 'UTC');
         
         // Mock the now() function to return our fixed time
         Carbon::setTestNow($fixedTime);
         
-        // Test with a challenge that expires in 12 hours (should return true)
-        $expiringSoon = CustomerChallenge::factory()->create([
-            'expires_at' => $fixedTime->copy()->addHours(12),
+        // Create a minimal challenge to avoid factory date conflicts
+        $challenge = Challenge::factory()->create([
+            'start_date' => $fixedTime->copy()->subDays(1),
+            'end_date' => $fixedTime->copy()->addDays(30),
         ]);
+        
+        // Create a customer to avoid factory creation
+        $customer = Customer::factory()->create();
+        
+        // Test with a challenge that expires in 12 hours (should return true)
+        $expiresAt = $fixedTime->copy()->addHours(12);
+        
+        $expiringSoon = CustomerChallenge::create([
+            'customer_id' => $customer->id,
+            'challenge_id' => $challenge->id,
+            'assigned_at' => $fixedTime->copy()->subDays(1),
+            'started_at' => $fixedTime->copy()->subDays(1),
+            'expires_at' => $expiresAt,
+            'status' => 'active',
+            'progress_current' => 5,
+            'progress_target' => 10,
+            'progress_percentage' => 50.0,
+        ]);
+
+        // Refresh the model to ensure we have the latest data
+        $expiringSoon->refresh();
 
         // Verify the expiry time is actually in the future
         $this->assertTrue($expiringSoon->expires_at->isFuture());
@@ -247,15 +269,41 @@ class CustomerChallengeTest extends TestCase
         $this->assertTrue($expiringSoon->expiresSoon());
 
         // Test with a challenge that expires in 2 days (should return false)
-        $notExpiringSoon = CustomerChallenge::factory()->create([
+        $challenge2 = Challenge::factory()->create([
+            'start_date' => $fixedTime->copy()->subDays(1),
+            'end_date' => $fixedTime->copy()->addDays(30),
+        ]);
+        
+        $notExpiringSoon = CustomerChallenge::create([
+            'customer_id' => $customer->id,
+            'challenge_id' => $challenge2->id,
+            'assigned_at' => $fixedTime->copy()->subDays(1),
+            'started_at' => $fixedTime->copy()->subDays(1),
             'expires_at' => $fixedTime->copy()->addDays(2),
+            'status' => 'active',
+            'progress_current' => 5,
+            'progress_target' => 10,
+            'progress_percentage' => 50.0,
         ]);
 
         $this->assertFalse($notExpiringSoon->expiresSoon());
 
         // Test with no expiry date (should return false)
-        $noExpiry = CustomerChallenge::factory()->create([
+        $challenge3 = Challenge::factory()->create([
+            'start_date' => $fixedTime->copy()->subDays(1),
+            'end_date' => $fixedTime->copy()->addDays(30),
+        ]);
+        
+        $noExpiry = CustomerChallenge::create([
+            'customer_id' => $customer->id,
+            'challenge_id' => $challenge3->id,
+            'assigned_at' => $fixedTime->copy()->subDays(1),
+            'started_at' => $fixedTime->copy()->subDays(1),
             'expires_at' => null,
+            'status' => 'active',
+            'progress_current' => 5,
+            'progress_target' => 10,
+            'progress_percentage' => 50.0,
         ]);
 
         $this->assertFalse($noExpiry->expiresSoon());
@@ -345,7 +393,7 @@ class CustomerChallengeTest extends TestCase
         $rewardDetails = [
             'type' => 'points',
             'value' => 100,
-            'awarded_at' => now(),
+            'awarded_at' => Carbon::now(),
         ];
 
         $customerChallenge->claimReward($rewardDetails);
@@ -374,21 +422,21 @@ class CustomerChallengeTest extends TestCase
             'customer_id' => $customer1->id,
             'challenge_id' => $challenge1->id,
             'status' => 'active',
-            'expires_at' => now()->addDay(),
+            'expires_at' => Carbon::now()->addDay(),
         ]);
 
         CustomerChallenge::factory()->create([
             'customer_id' => $customer2->id,
             'challenge_id' => $challenge2->id,
             'status' => 'completed',
-            'expires_at' => now()->addDay(),
+            'expires_at' => Carbon::now()->addDay(),
         ]);
 
         CustomerChallenge::factory()->create([
             'customer_id' => $customer3->id,
             'challenge_id' => $challenge3->id,
             'status' => 'active',
-            'expires_at' => now()->subDay(), // Expired
+            'expires_at' => Carbon::now()->subDay(), // Expired
         ]);
 
         $activeChallenges = CustomerChallenge::active()->get();

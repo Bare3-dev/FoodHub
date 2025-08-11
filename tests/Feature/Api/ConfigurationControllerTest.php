@@ -35,6 +35,18 @@ final class ConfigurationControllerTest extends TestCase
         
         // Associate user with restaurant
         $this->user->update(['restaurant_id' => $this->restaurant->id]);
+        
+        // Assign required permissions to the user
+        $this->user->update([
+            'permissions' => [
+                'view restaurant configs',
+                'create restaurant configs',
+                'update restaurant configs',
+                'delete restaurant configs',
+                'restore restaurant configs',
+                'force delete restaurant configs',
+            ]
+        ]);
     }
 
     /** @test */
@@ -180,7 +192,7 @@ final class ConfigurationControllerTest extends TestCase
         ];
 
         $response = $this->actingAs($this->user)
-            ->postJson("/api/restaurants/{$this->restaurant->id}/operating-hours", [
+            ->postJson("/api/restaurant-branches/{$this->branch->id}/operating-hours", [
                 'operating_hours' => $hours,
             ]);
 
@@ -204,12 +216,12 @@ final class ConfigurationControllerTest extends TestCase
         ];
 
         $response = $this->actingAs($this->user)
-            ->postJson("/api/restaurants/{$this->restaurant->id}/operating-hours", [
+            ->postJson("/api/restaurant-branches/{$this->branch->id}/operating-hours", [
                 'operating_hours' => $invalidHours,
             ]);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['operating_hours.*.open', 'operating_hours.*.close']);
+            ->assertJsonValidationErrors(['operating_hours.monday.open', 'operating_hours.monday.close']);
     }
 
     /** @test */

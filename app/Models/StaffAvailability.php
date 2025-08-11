@@ -35,9 +35,11 @@ final class StaffAvailability extends Model
     {
         return [
             'day_of_week' => 'integer',
-            'start_time' => 'datetime',
-            'end_time' => 'datetime',
+            'start_time' => 'string',
+            'end_time' => 'string',
             'is_available' => 'boolean',
+            'effective_from' => 'date',
+            'effective_until' => 'date',
         ];
     }
 

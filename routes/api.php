@@ -191,7 +191,7 @@ Route::group(['middleware' => ['auth:sanctum', \App\Http\Middleware\UserStatusMi
     });
     
     // Restaurant Owner + Super Admin endpoints
-    Route::group(['middleware' => 'role.permission:SUPER_ADMIN|RESTAURANT_OWNER'], function () {
+    Route::group(['middleware' => 'role.permission:SUPER_ADMIN|RESTAURANT_OWNER:'], function () {
         // Restaurant management (view/update own restaurants)
         // Note: GET /restaurants is handled by the public route with proper access control in controller
         Route::put('/restaurants/{restaurant}', [RestaurantController::class, 'update']);
@@ -205,7 +205,7 @@ Route::group(['middleware' => ['auth:sanctum', \App\Http\Middleware\UserStatusMi
         Route::get('/restaurants/{restaurant}/config', [ConfigurationController::class, 'getRestaurantConfig']);
         Route::post('/restaurants/{restaurant}/config', [ConfigurationController::class, 'setRestaurantConfig']);
         Route::get('/restaurant-branches/{restaurantBranch}/config', [ConfigurationController::class, 'getBranchConfig']);
-        Route::post('/restaurants/{restaurant}/operating-hours', [ConfigurationController::class, 'updateOperatingHours']);
+        Route::post('/restaurant-branches/{restaurantBranch}/operating-hours', [ConfigurationController::class, 'updateOperatingHours']);
         Route::post('/restaurants/{restaurant}/loyalty-program', [ConfigurationController::class, 'configureLoyaltyProgram']);
         
         // Staff management (for their restaurants) - Note: Full CRUD handled by SUPER_ADMIN apiResource above

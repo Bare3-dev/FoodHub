@@ -32,7 +32,12 @@ class POSIntegrationServiceTest extends TestCase
         PosIntegration::factory()->create([
             'restaurant_id' => $restaurant->id,
             'pos_type' => 'square',
-            'is_active' => true
+            'is_active' => true,
+            'configuration' => [
+                'api_url' => 'https://api.square.com',
+                'access_token' => 'test_token',
+                'merchant_id' => 'test_merchant'
+            ]
         ]);
         
         $order = Order::factory()->create([
@@ -41,12 +46,14 @@ class POSIntegrationServiceTest extends TestCase
         ]);
 
         Http::fake([
-            'square.com/api/*' => Http::response(['id' => 'pos_order_123'], 200)
+            'api.square.com/*' => Http::response(['order' => ['id' => 'pos_order_123']], 200)
         ]);
 
         $result = $this->service->createPOSOrder($order, 'square');
 
-        $this->assertTrue($result);
+        $this->assertIsArray($result);
+        $this->assertTrue($result['success']);
+        $this->assertEquals('pos_order_123', $result['pos_order_id']);
         
         $this->assertDatabaseHas('pos_order_mappings', [
             'foodhub_order_id' => $order->id,
@@ -64,8 +71,9 @@ class POSIntegrationServiceTest extends TestCase
             'pos_type' => 'square',
             'is_active' => true,
             'configuration' => [
-                'api_url' => 'https://api.square.com/v2/fail',
-                'api_key' => 'test_key'
+                'api_url' => 'https://api.square.com',
+                'access_token' => 'test_key',
+                'merchant_id' => 'test_merchant'
             ]
         ]);
         
@@ -73,15 +81,12 @@ class POSIntegrationServiceTest extends TestCase
             'restaurant_id' => $restaurant->id
         ]);
 
-        $result = $this->service->createPOSOrder($order, 'square');
-
-        $this->assertFalse($result);
-        
-        $this->assertDatabaseHas('pos_order_mappings', [
-            'foodhub_order_id' => $order->id,
-            'pos_type' => 'square',
-            'sync_status' => 'failed'
+        Http::fake([
+            'api.square.com/*' => Http::response(['error' => 'API Error'], 400)
         ]);
+
+        $this->expectException(\Exception::class);
+        $this->service->createPOSOrder($order, 'square');
     }
 
     public function test_update_order_status()
@@ -105,9 +110,11 @@ class POSIntegrationServiceTest extends TestCase
             'sync_status' => 'synced'
         ]);
 
-        $result = $this->service->updateOrderStatus($order, 'square', 'completed');
+        $result = $this->service->updateOrderStatus('pos_order_123', 'square', 'COMPLETED');
 
-        $this->assertTrue($result);
+        $this->assertIsArray($result);
+        $this->assertTrue($result['success']);
+        $this->assertEquals('completed', $result['status']);
         $this->assertEquals('completed', $order->fresh()->status);
     }
 
@@ -117,16 +124,23 @@ class POSIntegrationServiceTest extends TestCase
         PosIntegration::factory()->create([
             'restaurant_id' => $restaurant->id,
             'pos_type' => 'square',
-            'is_active' => true
+            'is_active' => true,
+            'configuration' => [
+                'api_url' => 'https://api.square.com',
+                'access_token' => 'test_token'
+            ]
         ]);
 
         Http::fake([
-            'square.com/api/*' => Http::response(['success' => true], 200)
+            'api.square.com/*' => Http::response(['objects' => []], 200)
         ]);
 
         $result = $this->service->syncMenuItems($restaurant, 'square');
 
-        $this->assertTrue($result);
+        $this->assertIsArray($result);
+        $this->assertTrue($result['success']);
+        $this->assertArrayHasKey('synced_items', $result);
+        $this->assertArrayHasKey('updated_items', $result);
     }
 
     public function test_sync_inventory_levels()
@@ -135,16 +149,22 @@ class POSIntegrationServiceTest extends TestCase
         PosIntegration::factory()->create([
             'restaurant_id' => $restaurant->id,
             'pos_type' => 'square',
-            'is_active' => true
+            'is_active' => true,
+            'configuration' => [
+                'api_url' => 'https://api.square.com',
+                'access_token' => 'test_token'
+            ]
         ]);
 
         Http::fake([
-            'square.com/api/*' => Http::response(['success' => true], 200)
+            'api.square.com/*' => Http::response(['objects' => []], 200)
         ]);
 
         $result = $this->service->syncInventoryLevels($restaurant, 'square');
 
-        $this->assertTrue($result);
+        $this->assertIsArray($result);
+        $this->assertTrue($result['success']);
+        $this->assertArrayHasKey('updated_items', $result);
     }
 
     public function test_get_active_integration()
@@ -156,7 +176,12 @@ class POSIntegrationServiceTest extends TestCase
             'is_active' => true
         ]);
 
-        $result = $this->service->getActiveIntegration($restaurant, 'square');
+        // Use reflection to access private method for testing
+        $reflection = new \ReflectionClass($this->service);
+        $method = $reflection->getMethod('getActiveIntegration');
+        $method->setAccessible(true);
+
+        $result = $method->invoke($this->service, $restaurant->id, 'square');
 
         $this->assertEquals($integration->id, $result->id);
     }
@@ -170,7 +195,12 @@ class POSIntegrationServiceTest extends TestCase
             'is_active' => false
         ]);
 
-        $result = $this->service->getActiveIntegration($restaurant, 'square');
+        // Use reflection to access private method for testing
+        $reflection = new \ReflectionClass($this->service);
+        $method = $reflection->getMethod('getActiveIntegration');
+        $method->setAccessible(true);
+
+        $result = $method->invoke($this->service, $restaurant->id, 'square');
 
         $this->assertNull($result);
     }

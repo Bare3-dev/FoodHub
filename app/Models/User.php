@@ -124,6 +124,14 @@ final class User extends Authenticatable
     }
 
     /**
+     * Alias for hasPermission method to maintain compatibility with policies.
+     */
+    public function hasPermissionTo(string $permission): bool
+    {
+        return $this->hasPermission($permission);
+    }
+
+    /**
      * Check if the user is a super admin.
      */
     public function isSuperAdmin(): bool

@@ -10,13 +10,14 @@ use App\Models\User;
 use App\Models\BranchMenuItem;
 use App\Models\Order;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class RestaurantBranchTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function it_has_expected_fillable_attributes()
     {
         $branch = new RestaurantBranch();
@@ -28,7 +29,7 @@ class RestaurantBranchTest extends TestCase
         ], $branch->getFillable());
     }
 
-    /** @test */
+    #[Test]
     public function it_casts_attributes_properly()
     {
         $branch = RestaurantBranch::factory()->create([
@@ -53,7 +54,7 @@ class RestaurantBranchTest extends TestCase
         $this->assertNotNull($branch->updated_at);
     }
 
-    /** @test */
+    #[Test]
     public function it_belongs_to_a_restaurant()
     {
         $restaurant = Restaurant::factory()->create();
@@ -62,7 +63,7 @@ class RestaurantBranchTest extends TestCase
         $this->assertEquals($restaurant->id, $branch->restaurant->id);
     }
 
-    /** @test */
+    #[Test]
     public function it_has_many_users()
     {
         $branch = RestaurantBranch::factory()->create();
@@ -70,7 +71,7 @@ class RestaurantBranchTest extends TestCase
         $this->assertTrue($branch->users->contains($user));
     }
 
-    /** @test */
+    #[Test]
     public function it_has_many_menu_items()
     {
         $branch = RestaurantBranch::factory()->create();
@@ -78,7 +79,7 @@ class RestaurantBranchTest extends TestCase
         $this->assertTrue($branch->menuItems->contains($item));
     }
 
-    /** @test */
+    #[Test]
     public function it_has_many_orders()
     {
         $branch = RestaurantBranch::factory()->create();
@@ -86,7 +87,7 @@ class RestaurantBranchTest extends TestCase
         $this->assertTrue($branch->orders->contains($order));
     }
 
-    /** @test */
+    #[Test]
     public function it_can_scope_active()
     {
         $active = RestaurantBranch::factory()->create(['status' => 'active']);
@@ -96,7 +97,7 @@ class RestaurantBranchTest extends TestCase
         $this->assertFalse($scoped->contains($inactive));
     }
 
-    /** @test */
+    #[Test]
     public function it_can_scope_accepts_online_orders()
     {
         $accepts = RestaurantBranch::factory()->create(['accepts_online_orders' => true]);
@@ -106,7 +107,7 @@ class RestaurantBranchTest extends TestCase
         $this->assertFalse($scoped->contains($rejects));
     }
 
-    /** @test */
+    #[Test]
     public function it_can_scope_within_radius()
     {
         // Create a branch at a known location

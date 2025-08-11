@@ -26,10 +26,10 @@ class CustomerChallengeFactory extends Factory
         return [
             'customer_id' => Customer::factory(),
             'challenge_id' => $challenge->id,
-            'assigned_at' => $this->faker->dateTimeBetween('-1 month', 'now'),
-            'started_at' => $this->faker->optional(70)->dateTimeBetween('-1 month', 'now'),
-            'completed_at' => $this->faker->optional(30)->dateTimeBetween('-1 month', 'now'),
-            'expires_at' => $this->faker->optional(80)->dateTimeBetween('now', '+1 month'),
+                    'assigned_at' => $this->faker->dateTimeBetween('-1 month', now()),
+        'started_at' => $this->faker->optional(70)->dateTimeBetween('-1 month', now()),
+        'completed_at' => $this->faker->optional(30)->dateTimeBetween('-1 month', now()),
+        'expires_at' => $this->faker->optional(80)->dateTimeBetween(now(), '+1 month'),
             'status' => $this->faker->randomElement(['assigned', 'active', 'completed', 'rewarded', 'expired', 'cancelled']),
             'progress_current' => $progressCurrent,
             'progress_target' => $progressTarget,
@@ -40,7 +40,7 @@ class CustomerChallengeFactory extends Factory
                 ['checkpoints' => ['checkpoint1' => 'completed', 'checkpoint2' => 'pending']],
             ]),
             'reward_claimed' => $this->faker->boolean(20),
-            'reward_claimed_at' => $this->faker->optional(20)->dateTimeBetween('-1 month', 'now'),
+            'reward_claimed_at' => $this->faker->optional(20)->dateTimeBetween('-1 month', now()),
             'reward_details' => $this->faker->optional()->randomElement([
                 ['points_earned' => $this->faker->numberBetween(100, 500)],
                 ['discount_amount' => $this->faker->randomFloat(2, 5, 50)],
@@ -77,6 +77,39 @@ class CustomerChallengeFactory extends Factory
             'completed_at' => now(),
             'progress_percentage' => 100,
             'progress_current' => $this->faker->numberBetween(10, 100),
+        ]);
+    }
+
+    /**
+     * Indicate that the customer challenge is rewarded.
+     */
+    public function rewarded(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => 'rewarded',
+            'started_at' => now()->subDays(5),
+            'completed_at' => now()->subDays(1),
+            'progress_percentage' => 100,
+            'progress_current' => $this->faker->numberBetween(10, 100),
+            'reward_claimed' => true,
+            'reward_claimed_at' => now(),
+        ]);
+    }
+
+    /**
+     * Indicate that the customer challenge has progress.
+     */
+    public function withProgress(int $progressPercentage = null): static
+    {
+        $progressTarget = $this->faker->numberBetween(10, 100);
+        $progressCurrent = $progressPercentage ? ($progressPercentage / 100) * $progressTarget : $this->faker->numberBetween(1, $progressTarget);
+        
+        return $this->state(fn (array $attributes) => [
+            'status' => 'active',
+            'started_at' => now()->subDays(3),
+            'progress_current' => $progressCurrent,
+            'progress_target' => $progressTarget,
+            'progress_percentage' => $progressPercentage ?? ($progressCurrent / $progressTarget) * 100,
         ]);
     }
 } 

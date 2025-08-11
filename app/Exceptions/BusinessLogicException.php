@@ -142,4 +142,44 @@ class BusinessLogicException extends Exception
             422
         );
     }
-} 
+
+    public static function posNotIntegrated(string $posType): self
+    {
+        return new self(
+            "Restaurant is not integrated with {$posType} POS system.",
+            'POS_NOT_INTEGRATED',
+            ['pos_type' => $posType],
+            422
+        );
+    }
+
+    public static function posOrderCreationFailed(string $reason): self
+    {
+        return new self(
+            "Failed to create order in POS system: {$reason}",
+            'POS_ORDER_CREATION_FAILED',
+            ['reason' => $reason],
+            422
+        );
+    }
+
+    public static function posOrderNotFound(string $posOrderId): self
+    {
+        return new self(
+            "POS order with ID '{$posOrderId}' not found.",
+            'POS_ORDER_NOT_FOUND',
+            ['pos_order_id' => $posOrderId],
+            404
+        );
+    }
+
+    public static function orderNotFound(string $orderId): self
+    {
+        return new self(
+            "Order with ID '{$orderId}' not found.",
+            'ORDER_NOT_FOUND',
+            ['order_id' => $orderId],
+            404
+        );
+    }
+}

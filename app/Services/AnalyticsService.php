@@ -219,9 +219,9 @@ class AnalyticsService
     }
 
     /**
-     * Calculate and store restaurant-level analytics.
+     * Calculate and store restaurant analytics for a given date.
      */
-    public function calculateRestaurantAnalytics(Restaurant $restaurant, Carbon $date): void
+    public function calculateRestaurantAnalytics(Restaurant $restaurant, Carbon $date): array
     {
         $analytics = [];
 
@@ -294,6 +294,14 @@ class AnalyticsService
                 $analytic
             );
         }
+
+        // Return summary data for testing
+        return [
+            'total_revenue' => $dailyRevenue ?? 0,
+            'total_orders' => $orderVolume ?? 0,
+            'average_satisfaction' => $satisfaction ?? 0,
+            'average_order_value' => ($dailyRevenue && $orderVolume) ? $dailyRevenue / $orderVolume : 0,
+        ];
     }
 
     /**
@@ -312,7 +320,7 @@ class AnalyticsService
     /**
      * Calculate customer satisfaction for a restaurant.
      */
-    private function calculateRestaurantSatisfaction(Restaurant $restaurant, Carbon $date): ?float
+    public function calculateRestaurantSatisfaction(Restaurant $restaurant, Carbon $date): ?float
     {
         $feedback = CustomerFeedback::where('restaurant_id', $restaurant->id)
             ->whereDate('created_at', $date)
@@ -596,6 +604,64 @@ class AnalyticsService
             'total_feedback' => $feedback->count(),
             'feedback_by_type' => $feedbackByType,
             'overall_average' => round($feedback->avg('rating'), 2),
+        ];
+    }
+
+    /**
+     * Calculate trends for a restaurant between two dates.
+     */
+    public function calculateTrends(Restaurant $restaurant, Carbon $currentDate, Carbon $previousDate): array
+    {
+        $currentRevenue = $this->calculateDailyRevenue($restaurant, $currentDate) ?? 0;
+        $previousRevenue = $this->calculateDailyRevenue($restaurant, $previousDate) ?? 0;
+
+        if ($previousRevenue == 0) {
+            return [
+                'revenue_change_percentage' => 0,
+                'revenue_trend' => 'stable',
+            ];
+        }
+
+        $changePercentage = (($currentRevenue - $previousRevenue) / $previousRevenue) * 100;
+        
+        return [
+            'revenue_change_percentage' => $changePercentage,
+            'revenue_trend' => $changePercentage > 0 ? 'increasing' : ($changePercentage < 0 ? 'decreasing' : 'stable'),
+        ];
+    }
+
+    /**
+     * Calculate productivity metrics for a branch.
+     */
+    public function calculateProductivityMetrics(RestaurantBranch $branch, Carbon $date): array
+    {
+        $orders = Order::where('restaurant_branch_id', $branch->id)
+            ->whereDate('created_at', $date)
+            ->whereNotNull('confirmed_at')
+            ->whereNotNull('prepared_at')
+            ->get();
+
+        if ($orders->isEmpty()) {
+            return [
+                'average_processing_time' => 0,
+                'orders_processed' => 0,
+                'fastest_order_time' => 0,
+                'slowest_order_time' => 0,
+            ];
+        }
+
+        $processingTimes = [];
+        foreach ($orders as $order) {
+            $confirmed = Carbon::parse($order->confirmed_at);
+            $prepared = Carbon::parse($order->prepared_at);
+            $processingTimes[] = $confirmed->diffInMinutes($prepared);
+        }
+
+        return [
+            'average_processing_time' => array_sum($processingTimes) / count($processingTimes),
+            'orders_processed' => count($orders),
+            'fastest_order_time' => min($processingTimes),
+            'slowest_order_time' => max($processingTimes),
         ];
     }
 } 

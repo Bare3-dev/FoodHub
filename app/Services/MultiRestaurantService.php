@@ -108,10 +108,8 @@ class MultiRestaurantService
     }
 
     /**
-     * 🕐 Staff transfer system - TEMPORARILY DISABLED
      * Request a staff transfer.
      */
-    /*
     public function requestStaffTransfer(array $transferData): StaffTransferHistory
     {
         return DB::transaction(function () use ($transferData) {
@@ -134,13 +132,10 @@ class MultiRestaurantService
             return $transfer;
         });
     }
-    */
 
     /**
-     * 🕐 Staff transfer system - TEMPORARILY DISABLED
      * Approve a staff transfer.
      */
-    /*
     public function approveStaffTransfer(StaffTransferHistory $transfer, int $approvedBy, string $notes = null): StaffTransferHistory
     {
         return DB::transaction(function () use ($transfer, $approvedBy, $notes) {
@@ -161,13 +156,10 @@ class MultiRestaurantService
             return $transfer;
         });
     }
-    */
 
     /**
-     * 🕐 Staff transfer system - TEMPORARILY DISABLED
      * Reject a staff transfer.
      */
-    /*
     public function rejectStaffTransfer(StaffTransferHistory $transfer, int $rejectedBy, string $notes): StaffTransferHistory
     {
         return DB::transaction(function () use ($transfer, $rejectedBy, $notes) {
@@ -188,13 +180,10 @@ class MultiRestaurantService
             return $transfer;
         });
     }
-    */
 
     /**
-     * 🕐 Staff transfer system - TEMPORARILY DISABLED
      * Complete a staff transfer.
      */
-    /*
     public function completeStaffTransfer(StaffTransferHistory $transfer): StaffTransferHistory
     {
         return DB::transaction(function () use ($transfer) {
@@ -227,7 +216,6 @@ class MultiRestaurantService
             return $transfer;
         });
     }
-    */
 
     /**
      * Validate transfer request.

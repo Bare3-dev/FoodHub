@@ -80,36 +80,34 @@ class StaffSchedulingService
      */
     public function detectConflicts(StaffShift $shift): void
     {
-        $conflicts = [];
-
         // Check for overlapping shifts
         if ($this->hasOverlappingShifts($shift)) {
-            $conflicts[] = $this->createConflict($shift, 'overlap', 'high');
+            $this->createConflict($shift, 'overlap', 'high');
         }
 
         // Check staff availability
         if (!$this->isStaffAvailable($shift)) {
-            $conflicts[] = $this->createConflict($shift, 'unavailable', 'high');
+            $this->createConflict($shift, 'unavailable', 'high');
         }
 
         // Check maximum weekly hours
         if ($this->exceedsMaxWeeklyHours($shift)) {
-            $conflicts[] = $this->createConflict($shift, 'max_hours', 'critical');
+            $this->createConflict($shift, 'max_hours', 'critical');
         }
 
         // Check minimum rest period
         if ($this->insufficientRestPeriod($shift)) {
-            $conflicts[] = $this->createConflict($shift, 'min_rest', 'medium');
+            $this->createConflict($shift, 'min_rest', 'medium');
         }
 
         // Check branch assignment
         if (!$this->isValidBranchAssignment($shift)) {
-            $conflicts[] = $this->createConflict($shift, 'branch_mismatch', 'high');
+            $this->createConflict($shift, 'branch_mismatch', 'high');
         }
 
         // Check role requirements
         if (!$this->isValidRoleAssignment($shift)) {
-            $conflicts[] = $this->createConflict($shift, 'role_mismatch', 'medium');
+            $this->createConflict($shift, 'role_mismatch', 'medium');
         }
     }
 
@@ -162,14 +160,12 @@ class StaffSchedulingService
 
         $weeklyHours = StaffShift::where('user_id', $shift->user_id)
             ->whereBetween('shift_date', [$weekStart, $weekEnd])
-            ->where('id', '!=', $shift->id)
             ->get()
             ->sum(function ($existingShift) {
                 return $existingShift->getDurationInMinutes() / 60;
             });
 
-        $newShiftHours = $shift->getDurationInMinutes() / 60;
-        $totalHours = $weeklyHours + $newShiftHours;
+        $totalHours = $weeklyHours;
 
         return $totalHours > self::MAX_WEEKLY_HOURS;
     }
@@ -348,47 +344,107 @@ class StaffSchedulingService
     }
 
     /**
+     * Get available staff for a specific time slot (alias for getAvailableStaff).
+     */
+    public function getAvailableStaffForTimeSlot(RestaurantBranch $branch, Carbon $date, string $startTime, string $endTime): Collection
+    {
+        return $this->getAvailableStaff($branch, $date, $startTime, $endTime);
+    }
+
+    /**
+     * Get available staff for auto-scheduling (doesn't check for existing shifts).
+     */
+    public function getAvailableStaffForAutoScheduling(RestaurantBranch $branch, Carbon $date, string $startTime, string $endTime): Collection
+    {
+        $dayOfWeek = $date->dayOfWeek;
+
+        $query = User::where('restaurant_branch_id', $branch->id)
+            ->where('status', 'active')
+            ->whereHas('availability', function ($query) use ($dayOfWeek, $startTime, $endTime) {
+                $query->where('day_of_week', $dayOfWeek)
+                      ->where('is_available', true)
+                      ->where('start_time', '<=', $startTime)
+                      ->where('end_time', '>=', $endTime)
+                      ->currentlyEffective();
+            });
+
+        // Debug: Log the SQL query
+        \Log::info('Auto-scheduling query:', [
+            'branch_id' => $branch->id,
+            'date' => $date->toDateString(),
+            'day_of_week' => $dayOfWeek,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'sql' => $query->toSql(),
+            'bindings' => $query->getBindings()
+        ]);
+
+        $result = $query->get();
+
+        // Debug: Log the result
+        \Log::info('Auto-scheduling result:', [
+            'count' => $result->count(),
+            'user_ids' => $result->pluck('id')->toArray(),
+            'user_roles' => $result->pluck('role')->toArray()
+        ]);
+
+        return $result;
+    }
+
+    /**
      * Auto-schedule staff based on availability and requirements.
      */
     public function autoScheduleStaff(RestaurantBranch $branch, Carbon $date, array $requirements): array
     {
         $scheduledShifts = [];
         $conflicts = [];
+        $scheduledStaffIds = []; // Track already scheduled staff
 
-        foreach ($requirements as $requirement) {
-            $availableStaff = $this->getAvailableStaff(
-                $branch,
-                $date,
-                $requirement['start_time'],
-                $requirement['end_time']
-            );
+        foreach ($requirements as $role => $count) {
+            for ($i = 0; $i < $count; $i++) {
+                $availableStaff = $this->getAvailableStaffForAutoScheduling(
+                    $branch,
+                    $date,
+                    '09:00', // Default start time
+                    '17:00'  // Default end time
+                );
 
-            if ($availableStaff->isEmpty()) {
-                $conflicts[] = [
-                    'type' => 'no_available_staff',
-                    'time_slot' => $requirement['start_time'] . ' - ' . $requirement['end_time'],
-                    'required_roles' => $requirement['roles'] ?? [],
-                ];
-                continue;
+                // Filter by role if specified
+                if ($role !== 'any') {
+                    $availableStaff = $availableStaff->where('role', $role);
+                }
+
+                // Exclude already scheduled staff
+                $availableStaff = $availableStaff->whereNotIn('id', $scheduledStaffIds);
+
+                if ($availableStaff->isEmpty()) {
+                    $conflicts[] = [
+                        'type' => 'no_available_staff',
+                        'time_slot' => '09:00 - 17:00',
+                        'required_role' => $role,
+                    ];
+                    continue;
+                }
+
+                // Select best available staff member
+                $selectedStaff = $this->selectBestStaffMember($availableStaff, ['roles' => [$role]]);
+                
+                $shift = $this->createShift([
+                    'user_id' => $selectedStaff->id,
+                    'restaurant_branch_id' => $branch->id,
+                    'shift_date' => $date,
+                    'start_time' => '09:00',
+                    'end_time' => '17:00',
+                    'notes' => "Auto-scheduled for {$role} role",
+                ]);
+
+                $scheduledShifts[] = $shift;
+                $scheduledStaffIds[] = $selectedStaff->id; // Mark as scheduled
             }
-
-            // Select best available staff member
-            $selectedStaff = $this->selectBestStaffMember($availableStaff, $requirement);
-            
-            $shift = $this->createShift([
-                'user_id' => $selectedStaff->id,
-                'restaurant_branch_id' => $branch->id,
-                'shift_date' => $date,
-                'start_time' => $requirement['start_time'],
-                'end_time' => $requirement['end_time'],
-                'notes' => $requirement['notes'] ?? null,
-            ]);
-
-            $scheduledShifts[] = $shift;
         }
 
         return [
-            'scheduled_shifts' => $scheduledShifts,
+            'scheduled_shifts' => collect($scheduledShifts),
             'conflicts' => $conflicts,
         ];
     }
@@ -460,5 +516,13 @@ class StaffSchedulingService
             'average_hours_per_shift' => round($averageHoursPerShift, 2),
             'conflict_rate' => $totalShifts > 0 ? ($conflictedShifts / $totalShifts) * 100 : 0,
         ];
+    }
+
+    /**
+     * Calculate shift statistics for a date range (alias for getShiftStatistics).
+     */
+    public function calculateShiftStatistics(RestaurantBranch $branch, Carbon $startDate, Carbon $endDate): array
+    {
+        return $this->getShiftStatistics($branch->id, $startDate, $endDate);
     }
 } 

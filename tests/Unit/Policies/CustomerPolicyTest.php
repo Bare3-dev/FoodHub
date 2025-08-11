@@ -9,6 +9,7 @@ use App\Models\Restaurant;
 use App\Models\RestaurantBranch;
 use App\Policies\CustomerPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 
 class CustomerPolicyTest extends TestCase
 {
@@ -82,7 +83,7 @@ class CustomerPolicyTest extends TestCase
         $this->policy = new CustomerPolicy();
     }
 
-    /** @test */
+    #[Test]
     public function super_admin_can_perform_all_actions()
     {
         // Super admin should have full access to all customers
@@ -95,7 +96,7 @@ class CustomerPolicyTest extends TestCase
         $this->assertTrue($this->policy->forceDelete($this->superAdmin, $this->customer));
     }
 
-    /** @test */
+    #[Test]
     public function restaurant_owner_can_view_and_update_customers()
     {
         // Restaurant owner should be able to view and update customers
@@ -110,7 +111,7 @@ class CustomerPolicyTest extends TestCase
         $this->assertFalse($this->policy->forceDelete($this->restaurantOwner, $this->customer));
     }
 
-    /** @test */
+    #[Test]
     public function branch_manager_can_view_and_update_customers()
     {
         // Branch manager should be able to view and update customers
@@ -125,7 +126,7 @@ class CustomerPolicyTest extends TestCase
         $this->assertFalse($this->policy->forceDelete($this->branchManager, $this->customer));
     }
 
-    /** @test */
+    #[Test]
     public function cashier_can_view_customers()
     {
         // Cashier should only be able to view customers
@@ -140,7 +141,7 @@ class CustomerPolicyTest extends TestCase
         $this->assertFalse($this->policy->forceDelete($this->cashier, $this->customer));
     }
 
-    /** @test */
+    #[Test]
     public function customer_service_can_manage_customers()
     {
         // Customer service should have full access to customers
@@ -153,7 +154,7 @@ class CustomerPolicyTest extends TestCase
         $this->assertTrue($this->policy->forceDelete($this->customerService, $this->customer));
     }
 
-    /** @test */
+    #[Test]
     public function kitchen_staff_cannot_manage_customers()
     {
         // Kitchen staff should not have access to customer management
@@ -166,7 +167,7 @@ class CustomerPolicyTest extends TestCase
         $this->assertFalse($this->policy->forceDelete($this->kitchenStaff, $this->customer));
     }
 
-    /** @test */
+    #[Test]
     public function inactive_users_cannot_access_customers()
     {
         $inactiveUser = User::factory()->create([
@@ -181,7 +182,7 @@ class CustomerPolicyTest extends TestCase
         $this->assertFalse($this->policy->delete($inactiveUser, $this->customer));
     }
 
-    /** @test */
+    #[Test]
     public function unauthorized_users_cannot_access_customers()
     {
         $unauthorizedUser = User::factory()->create([
@@ -196,7 +197,7 @@ class CustomerPolicyTest extends TestCase
         $this->assertFalse($this->policy->delete($unauthorizedUser, $this->customer));
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_null_user_gracefully()
     {
         $this->assertFalse($this->policy->viewAny(null));
@@ -206,7 +207,7 @@ class CustomerPolicyTest extends TestCase
         $this->assertFalse($this->policy->delete(null, $this->customer));
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_null_customer_gracefully()
     {
         $this->assertFalse($this->policy->view($this->customerService, null));
@@ -216,7 +217,7 @@ class CustomerPolicyTest extends TestCase
         $this->assertFalse($this->policy->forceDelete($this->customerService, null));
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_customer_with_deleted_restaurant()
     {
         // Create a customer associated with a restaurant
@@ -235,7 +236,7 @@ class CustomerPolicyTest extends TestCase
         $this->assertTrue($this->policy->update($this->customerService, $customer));
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_customer_with_inactive_status()
     {
         $inactiveCustomer = Customer::factory()->create([

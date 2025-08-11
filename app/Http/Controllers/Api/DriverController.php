@@ -8,7 +8,7 @@ use App\Http\Resources\Api\DriverResource;
 use App\Http\Requests\StoreDriverRequest;
 use App\Http\Requests\UpdateDriverRequest;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 
 class DriverController extends Controller
@@ -16,7 +16,7 @@ class DriverController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request): Response
+    public function index(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Driver::class);
 
@@ -42,8 +42,8 @@ class DriverController extends Controller
         $drivers = $query->paginate($perPage);
         
         // Return the response in the format expected by tests - with data key
-        return response([
-            'data' => DriverResource::collection($drivers->items()),
+        return response()->json([
+            'data' => DriverResource::collection($drivers),
             'current_page' => $drivers->currentPage(),
             'last_page' => $drivers->lastPage(),
             'per_page' => $drivers->perPage(),
@@ -56,7 +56,7 @@ class DriverController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreDriverRequest $request): Response
+    public function store(StoreDriverRequest $request): JsonResponse
     {
         $this->authorize('create', Driver::class);
 
@@ -72,25 +72,25 @@ class DriverController extends Controller
 
         // Return the newly created driver transformed by DriverResource
         // with a 201 Created status code.
-        return response(new DriverResource($driver), 201);
+        return response()->json(new DriverResource($driver), 201);
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Driver $driver): Response
+    public function show(Driver $driver): JsonResponse
     {
         $this->authorize('view', $driver);
 
         // Return the specified driver transformed by DriverResource.
         // Laravel's route model binding automatically retrieves the driver.
-        return response(new DriverResource($driver));
+        return response()->json(new DriverResource($driver));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateDriverRequest $request, Driver $driver): Response
+    public function update(UpdateDriverRequest $request, Driver $driver): JsonResponse
     {
         $this->authorize('update', $driver);
 
@@ -122,13 +122,13 @@ class DriverController extends Controller
         $driver->update($validated);
 
         // Return the updated driver transformed by DriverResource.
-        return response(new DriverResource($driver));
+        return response()->json(new DriverResource($driver));
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Driver $driver): Response
+    public function destroy(Driver $driver): JsonResponse
     {
         $this->authorize('delete', $driver);
 
@@ -136,6 +136,6 @@ class DriverController extends Controller
         $driver->delete();
 
         // Return a 204 No Content response, indicating successful deletion.
-        return response(null, 204);
+        return response()->json(null, 204);
     }
 }
