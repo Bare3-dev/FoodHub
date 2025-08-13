@@ -33,8 +33,8 @@ class RoleAndPermissionMiddleware
             return $next($request);
         }
 
-        $requiredRoles = $roles ? explode('|', $roles) : [];
-        $requiredPermissions = $permissions ? explode('|', $permissions) : [];
+        $requiredRoles = $roles && trim($roles) !== '' ? explode('|', $roles) : [];
+        $requiredPermissions = $permissions && trim($permissions) !== '' ? explode('|', $permissions) : [];
 
         // Debug logging for testing
         if (app()->environment('testing')) {
@@ -57,7 +57,7 @@ class RoleAndPermissionMiddleware
         
         // Check if user has access to any of the required roles using role hierarchy
         $hasRole = empty($requiredRoles) || collect($requiredRoles)->contains(function ($role) use ($user) {
-            return $user->hasRole($role);
+            return $user->hasRole($role) || $user->canAccessRole($role);
         });
         
         // Check if user has all required permissions (if any are specified)

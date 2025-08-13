@@ -19,6 +19,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
+use App\Exceptions\BusinessLogicException;
 
 /**
  * File Upload Controller
@@ -227,25 +230,33 @@ final class FileUploadController extends Controller
                 'file_path' => 'required|string|max:500',
             ]);
 
-            $filePath = $request->input('file_path');
+            $filePath = $request->input('file_path') ?? $request->query('file_path');
             $deleted = $this->fileUploadService->deleteFile($filePath);
 
             if (!$deleted) {
-                            return $this->errorResponse(
-                'File not found or could not be deleted',
-                'FILE_NOT_FOUND',
-                404
-            );
+                return $this->errorResponse(
+                    'File not found or could not be deleted',
+                    'FILE_NOT_FOUND',
+                    404
+                );
             }
 
             return $this->successResponse(
-                'File deleted successfully',
-                ['file_path' => $filePath]
+                ['file_path' => $filePath],
+                'File deleted successfully'
             );
 
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (BusinessLogicException $e) {
+            return $e->render();
         } catch (\Exception $e) {
             Log::error('File deletion failed', [
-                'file_path' => $request->input('file_path'),
+                'file_path' => $request->input('file_path') ?? $request->query('file_path'),
                 'user_id' => Auth::id(),
                 'error' => $e->getMessage(),
             ]);
@@ -268,21 +279,41 @@ final class FileUploadController extends Controller
                 'file_path' => 'required|string|max:500',
             ]);
 
-            $filePath = $request->input('file_path');
-            $exists = \Illuminate\Support\Facades\Storage::exists($filePath);
+            $filePath = $request->input('file_path') ?? $request->query('file_path');
+            
+            // Validate file path for security before checking storage
+            if (!$this->fileUploadService->isValidFilePath($filePath)) {
+                throw new \App\Exceptions\SecurityException('Invalid file path provided');
+            }
+            
+            $exists = Storage::disk('public')->exists($filePath);
 
             return $this->successResponse(
-                'File status retrieved successfully',
                 [
                     'file_path' => $filePath,
                     'exists' => $exists,
-                    'url' => $exists ? \Illuminate\Support\Facades\Storage::url($filePath) : null,
-                ]
+                    'url' => $exists ? Storage::disk('public')->url($filePath) : null,
+                ],
+                'File status retrieved successfully'
             );
 
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\App\Exceptions\SecurityException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Security validation failed',
+                'error_code' => 'SECURITY_VIOLATION',
+            ], 422);
+        } catch (BusinessLogicException $e) {
+            return $e->render();
         } catch (\Exception $e) {
             Log::error('File status check failed', [
-                'file_path' => $request->input('file_path'),
+                'file_path' => $request->input('file_path') ?? $request->query('file_path'),
                 'user_id' => Auth::id(),
                 'error' => $e->getMessage(),
             ]);

@@ -1,0 +1,28 @@
+# Broadcasting Configuration
+# Add these to your .env file
+
+# Broadcasting Driver
+BROADCAST_CONNECTION=pusher
+
+# Pusher Configuration (for WebSocket broadcasting)
+PUSHER_APP_ID=your_app_id
+PUSHER_APP_KEY=your_app_key
+PUSHER_APP_SECRET=your_app_secret
+PUSHER_APP_CLUSTER=mt1
+
+# For self-hosted WebSocket server (if not using Pusher cloud)
+# PUSHER_HOST=your-websocket-server.com
+# PUSHER_PORT=6001
+# PUSHER_SCHEME=http
+
+# Redis Configuration (if using Redis for broadcasting)
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+
+# Queue Configuration (for broadcasting jobs)
+QUEUE_CONNECTION=redis
+REDIS_QUEUE=default
+
+# Broadcasting Queue
+BROADCAST_QUEUE=broadcasting

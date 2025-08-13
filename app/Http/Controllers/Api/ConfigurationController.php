@@ -93,15 +93,48 @@ final class ConfigurationController extends Controller
     /**
      * Get branch configuration
      */
-    public function getBranchConfig(Request $request, RestaurantBranch $branch): JsonResponse
+    public function getBranchConfig(Request $request, RestaurantBranch $restaurantBranch): JsonResponse
     {
         try {
+            // Debug logging
+            \Log::info('getBranchConfig called', [
+                'branch_id' => $restaurantBranch->id,
+                'branch_restaurant_id' => $restaurantBranch->restaurant_id,
+                'user_id' => auth()->id(),
+                'user_role' => auth()->user()->role,
+                'user_permissions' => auth()->user()->permissions,
+            ]);
+
+            // Ensure branch has restaurant relationship loaded
+            if (!$restaurantBranch->relationLoaded('restaurant')) {
+                $restaurantBranch->load('restaurant');
+            }
+            
+            // Verify branch has a restaurant
+            if (!$restaurantBranch->restaurant_id || !$restaurantBranch->restaurant) {
+                \Log::error('Branch not associated with restaurant', [
+                    'branch_id' => $restaurantBranch->id,
+                    'branch_restaurant_id' => $restaurantBranch->restaurant_id,
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Branch not associated with a restaurant',
+                ], 400);
+            }
+            
             // Check if user can view restaurant configs
-            $dummyConfig = new RestaurantConfig(['restaurant_id' => $branch->restaurant_id]);
+            $dummyConfig = new RestaurantConfig(['restaurant_id' => $restaurantBranch->restaurant_id]);
+            
+            \Log::info('About to authorize', [
+                'dummy_config_restaurant_id' => $dummyConfig->restaurant_id,
+                'user_restaurant_id' => auth()->user()->restaurant_id,
+                'user_has_permission' => auth()->user()->hasPermission('view restaurant configs'),
+            ]);
+            
             $this->authorize('view', $dummyConfig);
 
             $key = $request->query('key');
-            $config = $this->configurationService->getBranchConfig($branch, $key);
+            $config = $this->configurationService->getBranchConfig($restaurantBranch, $key);
 
             return response()->json([
                 'success' => true,
@@ -109,10 +142,13 @@ final class ConfigurationController extends Controller
                 'message' => 'Branch configuration retrieved successfully',
             ]);
         } catch (\Exception $e) {
-            Log::error('Failed to get branch config', [
-                'branch_id' => $branch->id,
-                'key' => $key ?? 'all',
+            \Log::error('Failed to get branch config', [
+                'branch_id' => $restaurantBranch->id,
+                'branch_restaurant_id' => $restaurantBranch->restaurant_id,
+                'key' => $request->query('key') ?? 'all',
                 'error' => $e->getMessage(),
+                'error_class' => get_class($e),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
@@ -125,15 +161,28 @@ final class ConfigurationController extends Controller
     /**
      * Update branch operating hours
      */
-    public function updateOperatingHours(UpdateOperatingHoursRequest $request, RestaurantBranch $branch): JsonResponse
+    public function updateOperatingHours(UpdateOperatingHoursRequest $request, RestaurantBranch $restaurantBranch): JsonResponse
     {
         try {
+            // Ensure branch has restaurant relationship loaded
+            if (!$restaurantBranch->relationLoaded('restaurant')) {
+                $restaurantBranch->load('restaurant');
+            }
+            
+            // Verify branch has a restaurant
+            if (!$restaurantBranch->restaurant_id || !$restaurantBranch->restaurant) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Branch not associated with a restaurant',
+                ], 400);
+            }
+            
             // Check if user can update restaurant configs
             // Create a dummy config instance for authorization check
-            $dummyConfig = new RestaurantConfig(['restaurant_id' => $branch->restaurant_id]);
+            $dummyConfig = new RestaurantConfig(['restaurant_id' => $restaurantBranch->restaurant_id]);
             $this->authorize('update', $dummyConfig);
 
-            $this->configurationService->updateOperatingHours($branch, $request->validated()['operating_hours']);
+            $this->configurationService->updateOperatingHours($restaurantBranch, $request->validated()['operating_hours']);
 
             return response()->json([
                 'success' => true,
@@ -141,7 +190,8 @@ final class ConfigurationController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to update operating hours', [
-                'branch_id' => $branch->id,
+                'branch_id' => $restaurantBranch->id,
+                'branch_restaurant_id' => $restaurantBranch->restaurant_id,
                 'error' => $e->getMessage(),
             ]);
 

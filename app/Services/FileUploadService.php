@@ -490,7 +490,7 @@ class FileUploadService
     /**
      * Validate file path for security
      */
-    private function isValidFilePath(string $filePath): bool
+    public function isValidFilePath(string $filePath): bool
     {
         // Prevent directory traversal attacks
         if (str_contains($filePath, '..') || str_contains($filePath, '//')) {

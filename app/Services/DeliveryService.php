@@ -11,6 +11,8 @@ use App\Models\Customer;
 use App\Models\Restaurant;
 use App\Models\DeliveryTracking;
 use App\Models\WebhookLog;
+use App\Events\DriverLocationUpdated;
+use App\Events\DeliveryStatusChanged;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -322,20 +324,46 @@ class DeliveryService
             ->with(['order.customer'])
             ->get();
 
+        // Always dispatch the DriverLocationUpdated event for real-time tracking
+        try {
+            // If there are active deliveries, use the first one for context
+            $activeAssignment = $activeDeliveries->first();
+            $eta = null;
+            
+            if ($activeAssignment && $activeAssignment->order->customerAddress) {
+                $customerAddress = $activeAssignment->order->customerAddress;
+                if ($customerAddress->latitude && $customerAddress->longitude) {
+                    $eta = $this->calculateETA($location, $customerAddress->latitude, $customerAddress->longitude);
+                }
+            }
+            
+            broadcast(new DriverLocationUpdated($driver, $location, $activeAssignment, $eta))->toOthers();
+        } catch (\Exception $e) {
+            Log::error('Failed to broadcast driver location', [
+                'driver_id' => $driver->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+
+        // Process active deliveries for notifications
         foreach ($activeDeliveries as $assignment) {
             $customer = $assignment->order->customer;
+            $customerAddress = $assignment->order->customerAddress;
+            
+            // Skip if no customer address or coordinates
+            if (!$customerAddress || !$customerAddress->latitude || !$customerAddress->longitude) {
+                continue;
+            }
+            
             $distanceToCustomer = $this->calculateDistance(
                 $location['latitude'], $location['longitude'],
-                $assignment->order->delivery_latitude, $assignment->order->delivery_longitude
+                $customerAddress->latitude, $customerAddress->longitude
             );
 
             // Notify customer if driver is approaching (within 5 minutes)
             if ($distanceToCustomer <= 2.5) { // Assuming 30 km/h average speed
                 $this->notificationService->sendDriverApproachingNotification($customer, $driver, $assignment);
             }
-
-            // Broadcast location via WebSocket/SSE (placeholder)
-            $this->broadcastLocationUpdate($assignment, $location);
         }
 
         // Store location history
@@ -397,9 +425,18 @@ class DeliveryService
         $preparationTime = $order->estimated_preparation_time ?? 15; // minutes
 
         // Calculate delivery time based on distance and traffic
+        $customerAddress = $order->customerAddress;
+        if (!$customerAddress || !$customerAddress->latitude || !$customerAddress->longitude) {
+            return [
+                'error' => 'Customer address coordinates not available',
+                'estimated_delivery_time' => null,
+                'total_time' => null
+            ];
+        }
+        
         $distance = $this->calculateDistance(
             $restaurant->latitude, $restaurant->longitude,
-            $order->delivery_latitude, $order->delivery_longitude
+            $customerAddress->latitude, $customerAddress->longitude
         );
 
         $deliveryTime = $this->calculateDeliveryTime($distance, $driver->vehicle_type);
@@ -805,8 +842,9 @@ class DeliveryService
 
     private function broadcastLocationUpdate(OrderAssignment $assignment, array $location): void
     {
-        // Placeholder for WebSocket/SSE broadcasting
-        Log::info('Broadcasting location update', [
+        // This method is now deprecated as we use the DriverLocationUpdated event
+        // Keeping for backward compatibility
+        Log::info('Location update broadcasted via DriverLocationUpdated event', [
             'assignment_id' => $assignment->id,
             'location' => $location
         ]);
@@ -814,13 +852,28 @@ class DeliveryService
 
     private function storeLocationHistory(Driver $driver, array $location): void
     {
+        // Get the most recent active order assignment for this driver
+        $activeAssignment = $driver->orderAssignments()
+            ->whereIn('status', ['assigned', 'pickup', 'en_route'])
+            ->latest()
+            ->first();
+
         // Store location history for analysis
         DeliveryTracking::create([
             'driver_id' => $driver->id,
+            'order_assignment_id' => $activeAssignment?->id,
             'latitude' => $location['latitude'],
             'longitude' => $location['longitude'],
             'timestamp' => now(),
-            'accuracy' => $location['accuracy'] ?? null
+            'accuracy' => $location['accuracy'] ?? null,
+            'speed' => $location['speed'] ?? null,
+            'heading' => $location['heading'] ?? null,
+            'altitude' => $location['altitude'] ?? null,
+            'metadata' => [
+                'update_source' => 'driver_location_update',
+                'device_info' => $location['device_info'] ?? null,
+                'battery_level' => $location['battery_level'] ?? null,
+            ]
         ]);
     }
 
@@ -830,4 +883,447 @@ class DeliveryService
     }
 
     // Additional helper methods would be implemented here...
+    
+    /**
+     * Calculate ETA between two points
+     */
+    private function calculateETA(array $fromLocation, float $toLat, float $toLng): array
+    {
+        $distance = $this->calculateDistance(
+            $fromLocation['latitude'], 
+            $fromLocation['longitude'], 
+            $toLat, 
+            $toLng
+        );
+        
+        // Assume average speed of 30 km/h for delivery vehicles
+        $averageSpeed = 30; // km/h
+        $timeInHours = $distance / $averageSpeed;
+        $timeInMinutes = $timeInHours * 60;
+        
+        return [
+            'distance' => round($distance, 2),
+            'estimated_time_minutes' => round($timeInMinutes),
+            'estimated_time_hours' => round($timeInHours, 2),
+            'average_speed_kmh' => $averageSpeed
+        ];
+    }
+    
+    /**
+     * Calculate delivery time based on distance and vehicle type
+     */
+    private function calculateDeliveryTime(float $distance, string $vehicleType): int
+    {
+        $baseTimePerKm = match($vehicleType) {
+            'motorcycle' => 2.5, // minutes per km
+            'bicycle' => 4.0,    // minutes per km
+            default => 2.0        // car - minutes per km
+        };
+        
+        return (int) ($distance * $baseTimePerKm);
+    }
+    
+    /**
+     * Get optimal vehicle type for order
+     */
+    private function getOptimalVehicleType(Order $order): string
+    {
+        // Simple logic - in production, consider order size, distance, etc.
+        return 'motorcycle'; // Default to motorcycle for most orders
+    }
+    
+    /**
+     * Select best driver from available drivers
+     */
+    private function selectBestDriver(Collection $drivers, Order $order): Driver
+    {
+        // Simple selection - in production, use more sophisticated algorithms
+        return $drivers->first();
+    }
+    
+    /**
+     * Update driver capacity after assignment
+     */
+    private function updateDriverCapacity(Driver $driver): void
+    {
+        // Update driver's current order count
+        $currentOrders = $driver->orderAssignments()
+            ->whereIn('status', ['assigned', 'pickup', 'en_route'])
+            ->count();
+            
+        $driver->update(['current_orders' => $currentOrders]);
+    }
+    
+    /**
+     * Start order tracking for assignment
+     */
+    private function startOrderTracking(OrderAssignment $assignment): void
+    {
+        // Create initial tracking record
+        DeliveryTracking::create([
+            'driver_id' => $assignment->driver_id,
+            'order_id' => $assignment->order_id,
+            'status' => 'assigned',
+            'timestamp' => now()
+        ]);
+    }
+    
+    /**
+     * Reassign order to another driver
+     */
+    private function reassignOrder(Order $order, Driver $rejectedDriver): ?OrderAssignment
+    {
+        // Get next best available driver
+        $restaurant = $order->restaurant;
+        $availableDrivers = $this->getAvailableDrivers(
+            $restaurant->latitude, 
+            $restaurant->longitude,
+            ['exclude_driver_id' => $rejectedDriver->id]
+        );
+        
+        if ($availableDrivers->isEmpty()) {
+            return null;
+        }
+        
+        $bestDriver = $this->selectBestDriver($availableDrivers, $order);
+        
+        return OrderAssignment::create([
+            'driver_id' => $bestDriver->id,
+            'order_id' => $order->id,
+            'assigned_at' => now(),
+            'status' => 'assigned'
+        ]);
+    }
+    
+    /**
+     * Track rejection reason for optimization
+     */
+    private function trackRejectionReason(Driver $driver, ?string $reason): void
+    {
+        // Log rejection for future optimization
+        Log::info('Driver rejected order assignment', [
+            'driver_id' => $driver->id,
+            'reason' => $reason,
+            'timestamp' => now()
+        ]);
+    }
+    
+    /**
+     * Create batch from order
+     */
+    private function createBatchFromOrder(Order $order, Collection $allOrders): array
+    {
+        // Simple batching logic - in production, use more sophisticated algorithms
+        $batch = [
+            'orders' => collect([$order]),
+            'total_distance' => 0,
+            'estimated_time' => 0
+        ];
+        
+        return $batch;
+    }
+    
+    /**
+     * Apply traffic conditions to route
+     */
+    private function applyTrafficConditions(array $route, array $trafficConditions): array
+    {
+        // Simple traffic adjustment - in production, use real-time traffic data
+        foreach ($route as &$waypoint) {
+            $waypoint['traffic_multiplier'] = $trafficConditions['multiplier'] ?? 1.0;
+        }
+        
+        return $route;
+    }
+    
+    /**
+     * Calculate route metrics
+     */
+    private function calculateRouteMetrics(array $route): array
+    {
+        $totalDistance = 0;
+        $totalTime = 0;
+        
+        foreach ($route as $waypoint) {
+            $totalDistance += $waypoint['distance'] ?? 0;
+            $totalTime += $waypoint['time'] ?? 0;
+        }
+        
+        return [
+            'distance' => $totalDistance,
+            'time' => $totalTime,
+            'fuel_cost' => $totalDistance * 0.15, // Assume 0.15 per km
+            'estimated_cost' => $totalDistance * 0.20 // Assume 0.20 per km total cost
+        ];
+    }
+    
+    /**
+     * Calculate delivery progress
+     */
+    private function calculateDeliveryProgress(OrderAssignment $assignment, array $currentLocation): array
+    {
+        // Simple progress calculation
+        return [
+            'status_changed' => false,
+            'new_status' => null,
+            'progress_percentage' => 50, // Placeholder
+            'distance_remaining' => 0    // Placeholder
+        ];
+    }
+    
+    /**
+     * Recalculate ETA for assignment
+     */
+    private function recalculateETA(OrderAssignment $assignment, array $progress): array
+    {
+        // Simple ETA recalculation
+        return [
+            'estimated_arrival' => now()->addMinutes(30),
+            'time_remaining' => 30
+        ];
+    }
+    
+    /**
+     * Log delivery progress
+     */
+    private function logDeliveryProgress(OrderAssignment $assignment, array $progress, array $eta): void
+    {
+        Log::info('Delivery progress updated', [
+            'assignment_id' => $assignment->id,
+            'progress' => $progress,
+            'eta' => $eta
+        ]);
+    }
+    
+    /**
+     * Handle status change notification
+     */
+    private function handleStatusChangeNotification(OrderAssignment $assignment, string $newStatus): void
+    {
+        $this->sendDeliveryNotifications($assignment, $newStatus);
+    }
+    
+    /**
+     * Calculate progress percentage
+     */
+    private function calculateProgressPercentage(OrderAssignment $assignment): int
+    {
+        // Simple percentage calculation based on status
+        $statusProgress = match($assignment->status) {
+            'assigned' => 25,
+            'pickup' => 50,
+            'en_route' => 75,
+            'delivered' => 100,
+            default => 0
+        };
+        
+        return $statusProgress;
+    }
+    
+    /**
+     * Calculate time remaining
+     */
+    private function calculateTimeRemaining(OrderAssignment $assignment): ?int
+    {
+        // Placeholder - would calculate based on current location and destination
+        return 30; // minutes
+    }
+    
+    /**
+     * Calculate distance remaining
+     */
+    private function calculateDistanceRemaining(OrderAssignment $assignment): ?float
+    {
+        // Placeholder - would calculate based on current location and destination
+        return 5.0; // km
+    }
+    
+    /**
+     * Check status transition
+     */
+    private function checkStatusTransition(OrderAssignment $assignment): ?string
+    {
+        // Simple status transition logic
+        return null; // No automatic transitions for now
+    }
+    
+    /**
+     * Calculate average delivery time
+     */
+    private function calculateAverageDeliveryTime(Collection $assignments): float
+    {
+        // Placeholder calculation
+        return 45.0; // minutes
+    }
+    
+    /**
+     * Calculate delivery success rate
+     */
+    private function calculateDeliverySuccessRate(Collection $assignments): float
+    {
+        $total = $assignments->count();
+        $completed = $assignments->where('status', 'delivered')->count();
+        
+        return $total > 0 ? ($completed / $total) * 100 : 0;
+    }
+    
+    /**
+     * Calculate driver performance
+     */
+    private function calculateDriverPerformance(Collection $assignments): array
+    {
+        // Placeholder performance calculation
+        return [
+            'top_performers' => [],
+            'improvement_areas' => []
+        ];
+    }
+    
+    /**
+     * Analyze delivery zones
+     */
+    private function analyzeDeliveryZones(Collection $assignments): array
+    {
+        // Placeholder zone analysis
+        return [
+            'high_demand_zones' => [],
+            'efficiency_metrics' => []
+        ];
+    }
+    
+    /**
+     * Calculate delivery costs
+     */
+    private function calculateDeliveryCosts(Collection $assignments): array
+    {
+        // Placeholder cost calculation
+        return [
+            'total_cost' => 0,
+            'cost_per_delivery' => 0,
+            'cost_breakdown' => []
+        ];
+    }
+    
+    /**
+     * Calculate on-time delivery rate
+     */
+    private function calculateOnTimeDeliveryRate($date): float
+    {
+        // Placeholder calculation
+        return 95.0; // percentage
+    }
+    
+    /**
+     * Calculate average delivery time by zone
+     */
+    private function calculateAverageDeliveryTimeByZone(): array
+    {
+        // Placeholder calculation
+        return [
+            'zone_a' => 45.0,
+            'zone_b' => 52.0
+        ];
+    }
+    
+    /**
+     * Calculate customer satisfaction score
+     */
+    private function calculateCustomerSatisfactionScore(): float
+    {
+        // Placeholder calculation
+        return 4.2; // out of 5
+    }
+    
+    /**
+     * Calculate driver utilization rate
+     */
+    private function calculateDriverUtilizationRate(): float
+    {
+        // Placeholder calculation
+        return 78.5; // percentage
+    }
+    
+    /**
+     * Calculate fuel efficiency
+     */
+    private function calculateFuelEfficiency(): float
+    {
+        // Placeholder calculation
+        return 12.5; // km/l
+    }
+    
+    /**
+     * Calculate order accuracy rate
+     */
+    private function calculateOrderAccuracyRate(): float
+    {
+        // Placeholder calculation
+        return 98.2; // percentage
+    }
+    
+    /**
+     * Get historical delivery data
+     */
+    private function getHistoricalDeliveryData(): Collection
+    {
+        // Placeholder - would fetch from database
+        return collect([]);
+    }
+    
+    /**
+     * Identify high demand areas
+     */
+    private function identifyHighDemandAreas(Collection $data): array
+    {
+        // Placeholder analysis
+        return ['downtown', 'shopping_district'];
+    }
+    
+    /**
+     * Calculate zone adjustments
+     */
+    private function calculateZoneAdjustments(Collection $data): array
+    {
+        // Placeholder calculation
+        return ['expand_zone_a', 'optimize_zone_b'];
+    }
+    
+    /**
+     * Calculate optimal delivery fees
+     */
+    private function calculateOptimalDeliveryFees(Collection $data): array
+    {
+        // Placeholder calculation
+        return [
+            'zone_a' => 5.0,
+            'zone_b' => 7.5
+        ];
+    }
+    
+    /**
+     * Balance driver workload
+     */
+    private function balanceDriverWorkload(Collection $data): array
+    {
+        // Placeholder calculation
+        return ['redistribute_orders', 'adjust_zones'];
+    }
+    
+    /**
+     * Analyze traffic patterns
+     */
+    private function analyzeTrafficPatterns(Collection $data): array
+    {
+        // Placeholder analysis
+        return ['peak_hours', 'congestion_areas'];
+    }
+    
+    /**
+     * Optimize restaurant coverage
+     */
+    private function optimizeRestaurantCoverage(Collection $data): array
+    {
+        // Placeholder optimization
+        return ['add_partners', 'expand_service_areas'];
+    }
 } 

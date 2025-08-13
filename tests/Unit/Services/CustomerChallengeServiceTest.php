@@ -137,7 +137,7 @@ class CustomerChallengeServiceTest extends TestCase
         $this->assertInstanceOf(CustomerChallenge::class, $customerChallenge);
         $this->assertEquals($challenge->id, $customerChallenge->challenge_id);
         $this->assertEquals($customer->id, $customerChallenge->customer_id);
-        $this->assertEquals('assigned', $customerChallenge->status);
+        $this->assertEquals('active', $customerChallenge->status);
     }
 
     /**
@@ -511,7 +511,8 @@ class CustomerChallengeServiceTest extends TestCase
         // Check that leaderboard contains the expected data structure
         foreach ($leaderboard as $entry) {
             $this->assertArrayHasKey('customer', $entry);
-            $this->assertArrayHasKey('progress_percentage', $entry);
+            $this->assertArrayHasKey('progress', $entry);
+            $this->assertArrayHasKey('percentage', $entry['progress']);
         }
     }
 

@@ -31,6 +31,12 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'fcm' => [
+        'server_key' => env('FCM_SERVER_KEY'),
+        'project_id' => env('FCM_PROJECT_ID'),
+        'messaging_sender_id' => env('FCM_MESSAGING_SENDER_ID'),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | POS System Integrations

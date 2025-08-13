@@ -50,23 +50,25 @@ class PricingServiceTest extends TestCase
     {
         $order = Order::factory()->create([
             'subtotal' => 100.00,
+            'delivery_fee' => 10.00,
         ]);
 
         $taxAmount = $this->pricingService->calculateOrderTax($order);
 
-        // 15% VAT on 100 = 15.00
-        $this->assertEquals(15.00, $taxAmount);
+        // 15% VAT on (100 + 10) = 16.50
+        $this->assertEquals(16.50, $taxAmount);
     }
 
     public function test_calculate_order_tax_rounds_to_two_decimal_places()
     {
         $order = Order::factory()->create([
             'subtotal' => 33.33,
+            'delivery_fee' => 0.00,
         ]);
 
         $taxAmount = $this->pricingService->calculateOrderTax($order);
 
-        // 15% VAT on 33.33 = 4.9995, should round to 5.00
+        // 15% VAT on (33.33 + 0) = 4.9995, should round to 5.00
         $this->assertEquals(5.00, $taxAmount);
     }
 

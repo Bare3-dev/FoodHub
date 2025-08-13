@@ -195,26 +195,36 @@ class ConfigurationService
                 $branch->load('restaurant');
             }
             
+            // Debug logging
+            Log::info('getBranchConfig called', [
+                'branch_id' => $branch->id,
+                'branch_restaurant_id' => $branch->restaurant_id,
+                'restaurant_loaded' => $branch->relationLoaded('restaurant'),
+                'restaurant_id' => $branch->restaurant ? $branch->restaurant->id : null,
+                'key' => $key,
+            ]);
+            
             $cacheKey = "branch_config_{$branch->id}" . ($key ? "_$key" : '');
             
             return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($branch, $key) {
-                // First check branch-specific configs
-                $query = RestaurantConfig::where('restaurant_id', $branch->restaurant_id)
-                    ->where('config_key', 'like', "branch_{$branch->id}_%");
-                
                 if ($key) {
-                    $query->where('config_key', "branch_{$branch->id}_$key");
-                    $config = $query->first();
+                    // First check for branch-specific config
+                    $branchConfig = RestaurantConfig::where('restaurant_id', $branch->restaurant_id)
+                        ->where('config_key', "branch_{$branch->id}_$key")
+                        ->first();
                     
-                    if ($config) {
-                        return $this->processConfigValue($config);
+                    if ($branchConfig) {
+                        return $this->processConfigValue($branchConfig);
                     }
                     
                     // Fall back to restaurant config
                     return $this->getRestaurantConfig($branch->restaurant, $key);
                 }
                 
-                $branchConfigs = $query->get();
+                // Get all branch-specific configs
+                $branchConfigs = RestaurantConfig::where('restaurant_id', $branch->restaurant_id)
+                    ->where('config_key', 'like', "branch_{$branch->id}_%")
+                    ->get();
                 $result = [];
                 
                 foreach ($branchConfigs as $config) {

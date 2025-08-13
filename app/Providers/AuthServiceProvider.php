@@ -32,6 +32,15 @@ class AuthServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Define gates for queue monitoring access
+        Gate::define('viewQueueMonitoring', function ($user) {
+            return in_array($user->role, ['owner', 'manager', 'admin']);
+        });
+
+        Gate::define('manageQueueJobs', function ($user) {
+            return in_array($user->role, ['owner', 'admin']);
+        });
+
         $this->registerPolicies();
         \Illuminate\Support\Facades\Gate::policy(\App\Models\User::class, \App\Policies\UserPolicy::class);
     }

@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('loyalty_points_history', function (Blueprint $table) {
+        Schema::table('delivery_tracking', function (Blueprint $table) {
             //
         });
     }
@@ -21,7 +21,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('loyalty_points_history', function (Blueprint $table) {
+        Schema::table('delivery_tracking', function (Blueprint $table) {
             //
         });
     }

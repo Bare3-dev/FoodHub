@@ -38,9 +38,14 @@ class Kernel extends HttpKernel
         ],
 
         'api' => [
-            // \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
-            // 'throttle:api',
-            // \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\ApiVersionMiddleware::class,
+            \App\Http\Middleware\VersionDeprecationMiddleware::class,
+            \App\Http\Middleware\VersionAnalyticsMiddleware::class,
+            \App\Http\Middleware\HttpsEnforcementMiddleware::class,
+            \App\Http\Middleware\InputSanitizationMiddleware::class,
+            \App\Http\Middleware\ApiCorsMiddleware::class,
+            \App\Http\Middleware\AdvancedRateLimitMiddleware::class,
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ],
     ];
 
@@ -60,9 +65,9 @@ class Kernel extends HttpKernel
         'https.security' => \App\Http\Middleware\HttpsEnforcementMiddleware::class,
         'input.sanitization' => \App\Http\Middleware\InputSanitizationMiddleware::class,
         'bindings' => \Illuminate\Routing\Middleware\SubstituteBindings::class,
+        'cache.headers' => \Illuminate\Http\Middleware\SetCacheHeaders::class,
         // 'auth' => \App\Http\Middleware\Authenticate::class,
         // 'auth.basic' => \Illuminate\Auth\Middleware\AuthenticateWithBasicAuth::class,
-        // 'cache.headers' => \Illuminate\Http\Middleware\SetCacheHeaders::class,
         // 'can' => \Illuminate\Auth\Middleware\Authorize::class,
         // 'guest' => \App\Http\Middleware\RedirectIfAuthenticated::class,
         // 'signed' => \Illuminate\Routing\Middleware\ValidateSignature::class,

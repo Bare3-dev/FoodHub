@@ -159,9 +159,10 @@ class LoyaltyService
     public function processOrderLoyaltyPoints(Order $order): void
     {
         DB::transaction(function () use ($order) {
-            // Get customer loyalty points
+            // Get customer loyalty points with row lock to prevent race conditions
             $customerLoyaltyPoints = CustomerLoyaltyPoint::where('customer_id', $order->customer_id)
                 ->where('is_active', true)
+                ->lockForUpdate()
                 ->first();
 
             if (!$customerLoyaltyPoints) {
@@ -179,12 +180,19 @@ class LoyaltyService
                 'loyalty_points_earned' => $pointsEarned
             ]);
 
-            // Update customer loyalty points
+            // Get current values before update for history record
+            $currentPointsBefore = $customerLoyaltyPoints->current_points;
+            $totalPointsEarnedBefore = $customerLoyaltyPoints->total_points_earned;
+
+            // Update customer loyalty points using atomic increment
+            $customerLoyaltyPoints->increment('current_points', $pointsEarned);
+            $customerLoyaltyPoints->increment('total_points_earned', $pointsEarned);
             $customerLoyaltyPoints->update([
-                'current_points' => $customerLoyaltyPoints->current_points + $pointsEarned,
-                'total_points_earned' => $customerLoyaltyPoints->total_points_earned + $pointsEarned,
                 'last_points_earned_date' => now()
             ]);
+
+            // Refresh the model to get updated values
+            $customerLoyaltyPoints->refresh();
 
             // Handle tier progression after points update
             $this->handleTierProgression($customerLoyaltyPoints);
@@ -196,7 +204,7 @@ class LoyaltyService
                     'order_id' => $order->id,
                     'transaction_type' => 'earned',
                     'points_amount' => $pointsEarned,
-                    'points_balance_after' => $customerLoyaltyPoints->current_points + $pointsEarned,
+                    'points_balance_after' => $customerLoyaltyPoints->current_points,
                     'description' => "Points earned from order #{$order->order_number}",
                     'source' => 'order',
                     'reference_type' => 'order',

@@ -262,7 +262,19 @@ class AuthorizationTest extends TestCase
         $this->postJson('/api/menu-categories', [])->assertStatus(422); // Access allowed, validation fails
         
         // But branch manager cannot access restaurant owner functions (creating restaurant branches)
-        $this->postJson('/api/restaurant-branches', [])->assertStatus(403); // Access denied - branch managers cannot create branches
+        $restaurant = $this->createRestaurant(); // Create a valid restaurant
+        $this->postJson('/api/restaurant-branches', [
+            'restaurant_id' => $restaurant->id,
+            'name' => 'Test Branch',
+            'address' => '123 Test St',
+            'city' => 'Test City',
+            'state' => 'Test State',
+            'postal_code' => '12345',
+            'country' => 'Test Country',
+            'latitude' => 40.7128,
+            'longitude' => -74.0060,
+            'phone' => '123-456-7890'
+        ])->assertStatus(403); // Access denied - branch managers cannot create branches
         
         // Kitchen staff cannot access admin functions
         $kitchenStaff = $this->actingAsUser('KITCHEN_STAFF');

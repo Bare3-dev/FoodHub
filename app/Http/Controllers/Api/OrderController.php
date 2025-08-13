@@ -8,6 +8,8 @@ use App\Http\Resources\Api\OrderResource;
 use App\Http\Requests\StoreOrderRequest;
 use App\Http\Requests\UpdateOrderRequest;
 use App\Services\LoyaltyService;
+use App\Events\NewOrderPlaced;
+use App\Events\OrderStatusUpdated;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
@@ -103,6 +105,16 @@ class OrderController extends Controller
             $order->update(['loyalty_points_used' => $loyaltyPointsUsed]);
         }
 
+        // Broadcast new order event for real-time updates
+        try {
+            broadcast(new NewOrderPlaced($order))->toOthers();
+        } catch (\Exception $e) {
+            \Log::error('Failed to broadcast new order event', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+
         // Return the newly created order transformed by OrderResource
         // with a 201 Created status code.
         return response(new OrderResource($order), 201);
@@ -131,8 +143,25 @@ class OrderController extends Controller
         // Access the validated data directly.
         $validated = $request->validated();
 
+        // Store previous status for broadcasting
+        $previousStatus = $order->status;
+
         // Update the existing Order record with the validated data.
         $order->update($validated);
+
+        // Broadcast order status update if status changed
+        if (isset($validated['status']) && $validated['status'] !== $previousStatus) {
+            try {
+                broadcast(new OrderStatusUpdated($order, $previousStatus, $validated['status']))->toOthers();
+            } catch (\Exception $e) {
+                \Log::error('Failed to broadcast order status update', [
+                    'order_id' => $order->id,
+                    'previous_status' => $previousStatus,
+                    'new_status' => $validated['status'],
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
 
         // Return the updated order transformed by OrderResource.
         return response(new OrderResource($order));

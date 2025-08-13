@@ -18,10 +18,10 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         // Disable session and frontend middleware for API routes to allow proper cache headers
-        $middleware->api(remove: [
-            \Illuminate\Session\Middleware\StartSession::class,
-            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
-        ]);
+        // $middleware->api(remove: [
+        //     \Illuminate\Session\Middleware\StartSession::class,
+        //     \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+        // ]);
 
         //
     })

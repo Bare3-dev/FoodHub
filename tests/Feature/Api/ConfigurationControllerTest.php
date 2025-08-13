@@ -26,12 +26,17 @@ final class ConfigurationControllerTest extends TestCase
         
         $this->user = User::factory()->create([
             'role' => 'RESTAURANT_OWNER',
+            'status' => 'active',
         ]);
         
         $this->restaurant = Restaurant::factory()->create();
         $this->branch = RestaurantBranch::factory()->create([
             'restaurant_id' => $this->restaurant->id,
         ]);
+        
+        // Ensure branch has restaurant relationship loaded and refresh from database
+        $this->branch->refresh();
+        $this->branch->load('restaurant');
         
         // Associate user with restaurant
         $this->user->update(['restaurant_id' => $this->restaurant->id]);
@@ -46,6 +51,20 @@ final class ConfigurationControllerTest extends TestCase
                 'restore restaurant configs',
                 'force delete restaurant configs',
             ]
+        ]);
+        
+        // Debug: Check what permissions the user actually has
+        \Log::info('Test setup debug', [
+            'user_id' => $this->user->id,
+            'user_restaurant_id' => $this->user->restaurant_id,
+            'restaurant_id' => $this->restaurant->id,
+            'branch_id' => $this->branch->id,
+            'branch_restaurant_id' => $this->branch->restaurant_id,
+            'branch_restaurant_loaded' => $this->branch->relationLoaded('restaurant'),
+            'branch_restaurant_object' => $this->branch->restaurant_id,
+            'user_permissions' => $this->user->permissions,
+            'user_has_view_permission' => $this->user->hasPermission('view restaurant configs'),
+            'user_role' => $this->user->role,
         ]);
     }
 
@@ -115,7 +134,7 @@ final class ConfigurationControllerTest extends TestCase
         $response->assertOk()
             ->assertJson([
                 'success' => true,
-                'message' => 'Restaurant configuration updated successfully',
+                'message' => 'Restaurant configuration set successfully',
             ]);
 
         // Verify config was created
@@ -150,8 +169,28 @@ final class ConfigurationControllerTest extends TestCase
             'data_type' => 'string',
         ]);
 
+        // Debug: Check user state before request
+        \Log::info('Branch config test debug', [
+            'user_id' => $this->user->id,
+            'user_restaurant_id' => $this->user->restaurant_id,
+            'restaurant_id' => $this->restaurant->id,
+            'branch_id' => $this->branch->id,
+            'branch_restaurant_id' => $this->branch->restaurant_id,
+            'branch_restaurant_loaded' => $this->branch->relationLoaded('restaurant'),
+            'branch_restaurant_object' => $this->branch->restaurant_id,
+            'user_permissions' => $this->user->permissions,
+            'user_has_view_permission' => $this->user->hasPermission('view restaurant configs'),
+        ]);
+
         $response = $this->actingAs($this->user)
             ->getJson("/api/restaurant-branches/{$this->branch->id}/config?key=test_key");
+
+        // Debug: Log the response details
+        \Log::info('Test response details', [
+            'status' => $response->status(),
+            'content' => $response->content(),
+            'headers' => $response->headers->all(),
+        ]);
 
         $response->assertOk()
             ->assertJson([

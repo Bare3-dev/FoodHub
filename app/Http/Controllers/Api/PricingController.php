@@ -229,8 +229,23 @@ final class PricingController extends Controller
             // Calculate tax
             $taxAmount = $this->pricingService->calculateOrderTax($order);
             
+            // Process coupons and update order discount percentage
+            if (!empty($request->coupons)) {
+                $couponCode = $request->coupons[0]; // Use first coupon for now
+                $coupons = [
+                    'WELCOME10' => ['type' => 'percentage', 'value' => 10, 'min_order' => 50],
+                    'SAVE20' => ['type' => 'fixed', 'value' => 20, 'min_order' => 100],
+                    'HAPPYHOUR' => ['type' => 'percentage', 'value' => 15, 'min_order' => 30],
+                ];
+                
+                if (isset($coupons[$couponCode]) && $order->subtotal >= $coupons[$couponCode]['min_order']) {
+                    $order->coupon_discount_percentage = $coupons[$couponCode]['value'];
+                    $order->promo_code = $couponCode;
+                }
+            }
+            
             // Apply discounts
-            $discountAmount = $this->pricingService->applyDiscounts($order, $request->coupons ?? []);
+            $discountAmount = $this->pricingService->applyDiscounts($order);
             
             // Calculate total
             $totalAmount = $order->subtotal + $deliveryFee + $taxAmount - $discountAmount;

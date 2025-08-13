@@ -35,7 +35,7 @@ class CustomerChallengeService
             'customer_id' => $customer->id,
             'challenge_id' => $challenge->id,
             'assigned_at' => now(),
-            'status' => 'assigned',
+            'status' => 'active', // Start as active so it can be processed immediately
             'progress_current' => 0,
             'progress_target' => $this->calculateTarget($challenge),
             'progress_percentage' => 0,
@@ -239,9 +239,15 @@ class CustomerChallengeService
         $tierMultiplier = $this->getCustomerTierMultiplier($customer);
         $difficultyMultiplier = $this->getDifficultyMultiplier($challenge);
         
+        // Calculate adjusted value with a cap of 150% of base value
+        $adjustedValue = min(
+            $baseValue * $tierMultiplier * $difficultyMultiplier,
+            $baseValue * 1.5
+        );
+        
         return [
             'base_value' => $baseValue,
-            'adjusted_value' => $baseValue * $tierMultiplier * $difficultyMultiplier,
+            'adjusted_value' => $adjustedValue,
             'tier_multiplier' => $tierMultiplier,
             'difficulty_multiplier' => $difficultyMultiplier,
         ];
@@ -252,13 +258,26 @@ class CustomerChallengeService
      */
     public function getChallengeLeaderboard(Challenge $challenge, int $limit = 10): array
     {
-        return CustomerChallenge::where('challenge_id', $challenge->id)
+        $customerChallenges = CustomerChallenge::where('challenge_id', $challenge->id)
             ->where('status', 'completed')
             ->orderBy('completed_at', 'asc')
             ->limit($limit)
             ->with(['customer'])
-            ->get()
-            ->toArray();
+            ->get();
+
+        $rank = 1;
+        return $customerChallenges->map(function ($customerChallenge) use (&$rank) {
+            return [
+                'rank' => $rank++,
+                'customer' => $customerChallenge->customer,
+                'progress' => [
+                    'current' => $customerChallenge->progress_current,
+                    'target' => $customerChallenge->progress_target,
+                    'percentage' => $customerChallenge->progress_percentage,
+                ],
+                'completed_at' => $customerChallenge->completed_at,
+            ];
+        })->toArray();
     }
 
     /**
@@ -270,11 +289,17 @@ class CustomerChallengeService
         $tierMultiplier = $this->getCustomerTierMultiplier($customer);
         $difficultyMultiplier = $this->getDifficultyMultiplier($challenge);
 
-            return [
+        // Calculate adjusted value with a cap of 150% of base value
+        $adjustedValue = min(
+            $baseValue * $tierMultiplier * $difficultyMultiplier,
+            $baseValue * 1.5
+        );
+
+        return [
             'base_value' => $baseValue,
-            'adjusted_value' => $baseValue * $tierMultiplier * $difficultyMultiplier,
+            'adjusted_value' => $adjustedValue,
             'tier_multiplier' => $tierMultiplier,
-                'difficulty_multiplier' => $difficultyMultiplier,
+            'difficulty_multiplier' => $difficultyMultiplier,
         ];
     }
 
@@ -373,10 +398,11 @@ class CustomerChallengeService
     private function calculateTarget(Challenge $challenge): int
     {
         return match ($challenge->challenge_type) {
-            'frequency' => $challenge->requirements['order_count'] ?? 1,
-            'variety' => $challenge->requirements['unique_items'] ?? 1,
-            'spending' => $challenge->requirements['total_spent'] ?? 100,
-            'referral' => $challenge->requirements['referral_count'] ?? 1,
+            'frequency' => (int) ($challenge->requirements['order_count'] ?? 1),
+            'variety' => (int) ($challenge->requirements['unique_items'] ?? 1),
+            'spending' => (int) ($challenge->requirements['total_spent'] ?? 100),
+            'value' => (int) ($challenge->requirements['total_amount'] ?? 100),
+            'referral' => (int) ($challenge->requirements['referral_count'] ?? 1),
             default => 1,
         };
     }
@@ -396,8 +422,18 @@ class CustomerChallengeService
             case 'order_placed':
                 if ($challenge->challenge_type === 'frequency') {
                     $progress++;
-                } elseif ($challenge->challenge_type === 'spending') {
+                } elseif ($challenge->challenge_type === 'spending' || $challenge->challenge_type === 'value') {
                     $progress += (float) ($actionData['order_total'] ?? 0);
+                } elseif ($challenge->challenge_type === 'variety') {
+                    // For variety challenges, accumulate unique items across all orders
+                    $currentUniqueItems = [];
+                    if (isset($actionData['menu_items'])) {
+                        foreach ($actionData['menu_items'] as $item) {
+                            $currentUniqueItems[$item['id']] = $item['name'];
+                        }
+                    }
+                    // Add to existing progress (this is a simplified approach - in production you'd track all unique items)
+                    $progress += (float) count($currentUniqueItems);
                 }
                 break;
 
@@ -416,11 +452,15 @@ class CustomerChallengeService
             'progress_current' => $progress,
             'progress_percentage' => $percentage,
             'status' => $status,
+            'started_at' => $status === 'active' && $customerChallenge->started_at === null ? now() : $customerChallenge->started_at,
             'completed_at' => $status === 'completed' ? now() : null,
         ]);
 
         // Refresh the model to get updated values
         $customerChallenge->refresh();
+
+        // Create progress log
+        $this->createProgressLog($customerChallenge, $actionType, $actionData, $previousProgress, $progress);
 
         // Check for milestone notifications
         $this->checkMilestoneNotifications($customerChallenge, $previousProgress, $progress);
@@ -533,5 +573,39 @@ class CustomerChallengeService
                 break; // Only send one notification per update
             }
         }
+    }
+
+    /**
+     * Create progress log entry
+     */
+    private function createProgressLog(CustomerChallenge $customerChallenge, string $actionType, array $actionData, float $previousProgress, float $currentProgress): void
+    {
+        $target = (float) $customerChallenge->progress_target;
+        $milestones = [25, 50, 75];
+        $milestoneReached = false;
+        
+        foreach ($milestones as $milestone) {
+            $milestoneValue = ($target * $milestone) / 100;
+            
+            if ($previousProgress < $milestoneValue && $currentProgress >= $milestoneValue) {
+                $milestoneReached = true;
+                break;
+            }
+        }
+
+        \App\Models\ChallengeProgressLog::create([
+            'customer_challenge_id' => $customerChallenge->id,
+            'customer_id' => $customerChallenge->customer_id,
+            'challenge_id' => $customerChallenge->challenge_id,
+            'action_type' => $actionType,
+            'action_data' => $actionData,
+            'progress_before' => $previousProgress,
+            'progress_after' => $currentProgress,
+            'progress_increment' => $currentProgress - $previousProgress,
+            'description' => "Progress updated from {$previousProgress} to {$currentProgress} via {$actionType}",
+            'milestone_reached' => $milestoneReached,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 }

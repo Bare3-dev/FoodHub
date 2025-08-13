@@ -21,7 +21,7 @@ class MenuItemTest extends TestCase
     {
         $item = new MenuItem();
         $this->assertEquals([
-            'restaurant_id', 'menu_category_id', 'name', 'slug', 'description', 'ingredients',
+            'restaurant_id', 'menu_category_id', 'pos_item_id', 'name', 'slug', 'description', 'ingredients',
             'price', 'cost_price', 'currency', 'sku', 'images', 'preparation_time', 'calories',
             'nutritional_info', 'allergens', 'dietary_tags', 'is_available', 'is_featured',
             'is_spicy', 'spice_level', 'sort_order', 'customization_options', 'pos_data',

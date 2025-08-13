@@ -52,7 +52,8 @@ class OrderTest extends TestCase
             'estimated_delivery_time', 'customer_name', 'customer_phone',
             'delivery_address', 'delivery_notes', 'special_instructions',
             'payment_transaction_id', 'payment_data', 'promo_code',
-            'loyalty_points_earned', 'loyalty_points_used', 'pos_data',
+            'loyalty_points_earned', 'loyalty_points_used', 'tier_discount_percentage',
+            'coupon_discount_percentage', 'pos_data',
             'cancellation_reason', 'refund_amount', 'refunded_at'
         ];
 

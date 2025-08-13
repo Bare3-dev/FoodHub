@@ -173,7 +173,7 @@ class CustomerChallengeApiTest extends TestCase
         $this->assertDatabaseHas('customer_challenges', [
             'customer_id' => $this->customer->id,
             'challenge_id' => $challenge->id,
-            'status' => 'assigned',
+            'status' => 'active',
         ]);
     }
 

@@ -11,6 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
+use App\Models\RestaurantBranch;
 
 /**
  * File Upload Controller Test
@@ -80,7 +81,9 @@ final class FileUploadControllerTest extends TestCase
     /** @test */
     public function it_can_upload_restaurant_logo(): void
     {
-        $file = UploadedFile::fake()->create('logo.png', 1000, 'image/png');
+        // Create a proper test image that meets dimension requirements
+        $imageData = base64_decode('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCADIAMgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/8A');
+        $file = UploadedFile::fake()->createWithContent('logo.png', $imageData);
         
         $response = $this->actingAs($this->user)
             ->postJson("/api/restaurants/{$this->restaurant->id}/upload-logo", [
@@ -112,7 +115,9 @@ final class FileUploadControllerTest extends TestCase
     /** @test */
     public function it_can_upload_user_avatar(): void
     {
-        $file = UploadedFile::fake()->create('avatar.jpg', 1000, 'image/jpeg');
+        // Create a proper test image that meets dimension requirements
+        $imageData = base64_decode('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCADIAMgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/8A');
+        $file = UploadedFile::fake()->createWithContent('avatar.jpg', $imageData);
         
         $response = $this->actingAs($this->user)
             ->postJson("/api/users/{$this->user->id}/upload-avatar", [
@@ -144,7 +149,8 @@ final class FileUploadControllerTest extends TestCase
     /** @test */
     public function it_requires_authentication_for_uploads(): void
     {
-        $file = UploadedFile::fake()->create('menu-item.jpg', 1000, 'image/jpeg');
+        $imageData = base64_decode('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCADIAMgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/8A');
+        $file = UploadedFile::fake()->createWithContent('menu-item.jpg', $imageData);
         
         $response = $this->postJson("/api/menu-items/{$this->menuItem->id}/upload-image", [
             'image' => $file,
@@ -156,8 +162,15 @@ final class FileUploadControllerTest extends TestCase
     /** @test */
     public function it_requires_permission_for_menu_item_upload(): void
     {
-        $unauthorizedUser = User::factory()->create(['role' => 'CUSTOMER', 'status' => 'active']);
-        $file = UploadedFile::fake()->create('menu-item.jpg', 1000, 'image/jpeg');
+        // Create user with a valid staff role that doesn't have upload permissions
+        $unauthorizedUser = User::factory()->create([
+            'role' => 'KITCHEN_STAFF', 
+            'status' => 'active',
+            'restaurant_id' => $this->restaurant->id
+        ]);
+        
+        $imageData = base64_decode('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCADIAMgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/8A');
+        $file = UploadedFile::fake()->createWithContent('menu-item.jpg', $imageData);
         
         $response = $this->actingAs($unauthorizedUser)
             ->postJson("/api/menu-items/{$this->menuItem->id}/upload-image", [
@@ -170,8 +183,15 @@ final class FileUploadControllerTest extends TestCase
     /** @test */
     public function it_requires_permission_for_restaurant_logo_upload(): void
     {
-        $unauthorizedUser = User::factory()->create(['role' => 'CUSTOMER', 'status' => 'active']);
-        $file = UploadedFile::fake()->create('logo.png', 1000, 'image/png');
+        // Create user with a valid staff role that doesn't have upload permissions
+        $unauthorizedUser = User::factory()->create([
+            'role' => 'KITCHEN_STAFF', 
+            'status' => 'active',
+            'restaurant_id' => $this->restaurant->id
+        ]);
+        
+        $imageData = base64_decode('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCADIAMgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/8A');
+        $file = UploadedFile::fake()->createWithContent('logo.png', $imageData);
         
         $response = $this->actingAs($unauthorizedUser)
             ->postJson("/api/restaurants/{$this->restaurant->id}/upload-logo", [
@@ -184,8 +204,15 @@ final class FileUploadControllerTest extends TestCase
     /** @test */
     public function it_requires_permission_for_user_avatar_upload(): void
     {
-        $otherUser = User::factory()->create(['role' => 'CUSTOMER', 'status' => 'active']);
-        $file = UploadedFile::fake()->create('avatar.jpg', 1000, 'image/jpeg');
+        // Create user with a valid staff role that doesn't have upload permissions
+        $otherUser = User::factory()->create([
+            'role' => 'KITCHEN_STAFF', 
+            'status' => 'active',
+            'restaurant_id' => $this->restaurant->id
+        ]);
+        
+        $imageData = base64_decode('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCADIAMgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/8A');
+        $file = UploadedFile::fake()->createWithContent('avatar.jpg', $imageData);
         
         $response = $this->actingAs($otherUser)
             ->postJson("/api/users/{$this->user->id}/upload-avatar", [
@@ -240,7 +267,9 @@ final class FileUploadControllerTest extends TestCase
     /** @test */
     public function it_validates_file_size_limits(): void
     {
-        $file = UploadedFile::fake()->create('large-image.jpg', 6 * 1024 * 1024, 'image/jpeg');
+        // Create a large file that exceeds size limit
+        $largeImageData = str_repeat('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCADIAMgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/8A', 1000);
+        $file = UploadedFile::fake()->createWithContent('large-image.jpg', $largeImageData);
         
         $response = $this->actingAs($this->user)
             ->postJson("/api/menu-items/{$this->menuItem->id}/upload-image", [
@@ -254,7 +283,10 @@ final class FileUploadControllerTest extends TestCase
     /** @test */
     public function it_validates_image_dimensions(): void
     {
-        $file = UploadedFile::fake()->create('small-image.jpg', 1000, 'image/jpeg');
+        // Create a very small image that definitely doesn't meet minimum dimension requirements
+        // This creates a 1x1 pixel image which is well below the 100x100 minimum
+        $smallImageData = base64_decode('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/8A');
+        $file = UploadedFile::fake()->createWithContent('small-image.jpg', $smallImageData);
         
         $response = $this->actingAs($this->user)
             ->postJson("/api/menu-items/{$this->menuItem->id}/upload-image", [
@@ -269,7 +301,8 @@ final class FileUploadControllerTest extends TestCase
     public function it_can_delete_file(): void
     {
         // First upload a file
-        $file = UploadedFile::fake()->create('test.jpg', 1000, 'image/jpeg');
+        $imageData = base64_decode('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCADIAMgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/8A');
+        $file = UploadedFile::fake()->createWithContent('test.jpg', $imageData);
         $uploadResponse = $this->actingAs($this->user)
             ->postJson("/api/menu-items/{$this->menuItem->id}/upload-image", [
                 'image' => $file,
@@ -296,13 +329,14 @@ final class FileUploadControllerTest extends TestCase
     {
         $response = $this->actingAs($this->user)
             ->deleteJson('/api/files/delete', [
-                'file_path' => 'nonexistent/file.jpg',
+                'file_path' => 'menu_items/999/nonexistent.jpg',
             ]);
         
         $response->assertStatus(404)
             ->assertJson([
-                'success' => false,
+                'error' => 'Not Found',
                 'message' => 'File not found or could not be deleted',
+                'error_code' => 'FILE_NOT_FOUND',
             ]);
     }
 
@@ -310,7 +344,8 @@ final class FileUploadControllerTest extends TestCase
     public function it_can_check_file_status(): void
     {
         // First upload a file
-        $file = UploadedFile::fake()->create('test.jpg', 1000, 'image/jpeg');
+        $imageData = base64_decode('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCADIAMgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/8A');
+        $file = UploadedFile::fake()->createWithContent('test.jpg', $imageData);
         $uploadResponse = $this->actingAs($this->user)
             ->postJson("/api/menu-items/{$this->menuItem->id}/upload-image", [
                 'image' => $file,
@@ -321,9 +356,7 @@ final class FileUploadControllerTest extends TestCase
         
         // Check file status
         $response = $this->actingAs($this->user)
-            ->getJson('/api/files/status', [
-                'file_path' => $filePath,
-            ]);
+            ->getJson("/api/files/status?file_path={$filePath}");
         
         $response->assertStatus(200)
             ->assertJson([
@@ -340,16 +373,14 @@ final class FileUploadControllerTest extends TestCase
     public function it_returns_false_for_nonexistent_file_status(): void
     {
         $response = $this->actingAs($this->user)
-            ->getJson('/api/files/status', [
-                'file_path' => 'nonexistent/file.jpg',
-            ]);
+            ->getJson('/api/files/status?file_path=menu_items/999/nonexistent.jpg');
         
         $response->assertStatus(200)
             ->assertJson([
                 'success' => true,
                 'message' => 'File status retrieved successfully',
                 'data' => [
-                    'file_path' => 'nonexistent/file.jpg',
+                    'file_path' => 'menu_items/999/nonexistent.jpg',
                     'exists' => false,
                     'url' => null,
                 ],
@@ -364,18 +395,16 @@ final class FileUploadControllerTest extends TestCase
                 'file_path' => '../../../etc/passwd',
             ]);
         
-        $response->assertStatus(500);
+        $response->assertStatus(422);
     }
 
     /** @test */
     public function it_validates_file_path_for_status_check(): void
     {
         $response = $this->actingAs($this->user)
-            ->getJson('/api/files/status', [
-                'file_path' => '../../../etc/passwd',
-            ]);
+            ->getJson('/api/files/status?file_path=../../../etc/passwd');
         
-        $response->assertStatus(500);
+        $response->assertStatus(422);
     }
 
     /** @test */
@@ -406,7 +435,8 @@ final class FileUploadControllerTest extends TestCase
             ->shouldReceive('uploadMenuItemImage')
             ->andThrow(new \Exception('Upload failed'));
         
-        $file = UploadedFile::fake()->create('menu-item.jpg', 1000, 'image/jpeg');
+        $imageData = base64_decode('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCADIAMgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/8A');
+        $file = UploadedFile::fake()->createWithContent('menu-item.jpg', $imageData);
         
         $response = $this->actingAs($this->user)
             ->postJson("/api/menu-items/{$this->menuItem->id}/upload-image", [
@@ -415,16 +445,24 @@ final class FileUploadControllerTest extends TestCase
         
         $response->assertStatus(500)
             ->assertJson([
-                'success' => false,
+                'error' => 'Internal Server Error',
                 'message' => 'Failed to upload menu item image: Upload failed',
+                'error_code' => 'UPLOAD_FAILED',
             ]);
     }
 
     /** @test */
     public function it_allows_users_to_upload_their_own_avatar(): void
     {
-        $regularUser = User::factory()->create(['role' => 'CUSTOMER', 'status' => 'active']);
-        $file = UploadedFile::fake()->create('avatar.jpg', 1000, 'image/jpeg');
+        // Create user with valid staff role instead of CUSTOMER
+        $regularUser = User::factory()->create([
+            'role' => 'KITCHEN_STAFF', 
+            'status' => 'active',
+            'restaurant_id' => $this->restaurant->id
+        ]);
+        
+        $imageData = base64_decode('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCADIAMgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/8A');
+        $file = UploadedFile::fake()->createWithContent('avatar.jpg', $imageData);
         
         $response = $this->actingAs($regularUser)
             ->postJson("/api/users/{$regularUser->id}/upload-avatar", [
@@ -438,8 +476,14 @@ final class FileUploadControllerTest extends TestCase
     public function it_allows_super_admin_to_upload_any_avatar(): void
     {
         $superAdmin = User::factory()->create(['role' => 'SUPER_ADMIN', 'status' => 'active']);
-        $regularUser = User::factory()->create(['role' => 'CUSTOMER', 'status' => 'active']);
-        $file = UploadedFile::fake()->create('avatar.jpg', 1000, 'image/jpeg');
+        $regularUser = User::factory()->create([
+            'role' => 'KITCHEN_STAFF', 
+            'status' => 'active',
+            'restaurant_id' => $this->restaurant->id
+        ]);
+        
+        $imageData = base64_decode('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCADIAMgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/8A');
+        $file = UploadedFile::fake()->createWithContent('avatar.jpg', $imageData);
         
         $response = $this->actingAs($superAdmin)
             ->postJson("/api/users/{$regularUser->id}/upload-avatar", [
@@ -452,13 +496,20 @@ final class FileUploadControllerTest extends TestCase
     /** @test */
     public function it_allows_branch_manager_to_upload_menu_item_images(): void
     {
+        // Create a restaurant branch first
+        $branch = RestaurantBranch::factory()->create([
+            'restaurant_id' => $this->restaurant->id,
+        ]);
+        
         $branchManager = User::factory()->create([
             'role' => 'BRANCH_MANAGER',
-            'restaurant_branch_id' => $this->restaurant->branches()->first()->id ?? 1,
+            'restaurant_id' => $this->restaurant->id,
+            'restaurant_branch_id' => $branch->id,
             'status' => 'active',
         ]);
         
-        $file = UploadedFile::fake()->create('menu-item.jpg', 1000, 'image/jpeg');
+        $imageData = base64_decode('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCADIAMgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/8A');
+        $file = UploadedFile::fake()->createWithContent('menu-item.jpg', $imageData);
         
         $response = $this->actingAs($branchManager)
             ->postJson("/api/menu-items/{$this->menuItem->id}/upload-image", [

@@ -33,6 +33,7 @@ class OrderFactory extends Factory
             'restaurant_id' => Restaurant::factory(),
             'restaurant_branch_id' => RestaurantBranch::factory(),
             'customer_address_id' => CustomerAddress::factory(),
+            'driver_id' => null, // Driver is assigned later, not at creation
             'status' => $this->faker->randomElement([
                 'pending', 'confirmed', 'preparing', 'ready_for_pickup', 
                 'out_for_delivery', 'delivered', 'completed', 'cancelled'
@@ -64,6 +65,8 @@ class OrderFactory extends Factory
             'promo_code' => $this->faker->optional(0.2)->lexify('PROMO???'),
             'loyalty_points_earned' => $this->faker->randomFloat(2, 0, 20),
             'loyalty_points_used' => $this->faker->randomFloat(2, 0, 10),
+            'tier_discount_percentage' => 0.00,
+            'coupon_discount_percentage' => 0.00,
             'pos_data' => [],
             'cancellation_reason' => $this->faker->optional(0.1)->sentence(),
             'refund_amount' => $this->faker->optional(0.05)->randomFloat(2, 10, 100),
