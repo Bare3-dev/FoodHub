@@ -8,7 +8,7 @@ use App\Models\DeviceToken;
 
 class FCMService
 {
-    private string $serverKey;
+    private ?string $serverKey;
     private string $fcmUrl = 'https://fcm.googleapis.com/fcm/send';
 
     public function __construct()
@@ -102,6 +102,13 @@ class FCMService
 
     private function sendRequest(array $payload): bool
     {
+        if (!$this->serverKey) {
+            Log::warning('FCM server key not configured, skipping notification', [
+                'payload' => $payload
+            ]);
+            return false;
+        }
+
         try {
             $response = Http::withHeaders([
                 'Authorization' => 'key=' . $this->serverKey,
@@ -144,6 +151,11 @@ class FCMService
 
     public function validateToken(string $token): bool
     {
+        if (!$this->serverKey) {
+            Log::warning('FCM server key not configured, cannot validate token');
+            return false;
+        }
+
         // Send a test message to validate token
         $payload = [
             'to' => $token,

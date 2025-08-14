@@ -34,10 +34,7 @@ class OrderFactory extends Factory
             'restaurant_branch_id' => RestaurantBranch::factory(),
             'customer_address_id' => CustomerAddress::factory(),
             'driver_id' => null, // Driver is assigned later, not at creation
-            'status' => $this->faker->randomElement([
-                'pending', 'confirmed', 'preparing', 'ready_for_pickup', 
-                'out_for_delivery', 'delivered', 'completed', 'cancelled'
-            ]),
+            'status' => 'pending', // Use safe default status
             'type' => $this->faker->randomElement(['delivery', 'pickup', 'dine_in']),
             'payment_status' => $this->faker->randomElement(['pending', 'paid', 'failed', 'refunded']),
             'payment_method' => $this->faker->randomElement(['cash', 'card', 'wallet', 'apple_pay', 'google_pay']),

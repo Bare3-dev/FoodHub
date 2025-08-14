@@ -136,7 +136,7 @@ Route::middleware([\App\Http\Middleware\ApiVersionMiddleware::class])->prefix('v
         Route::get('/rate-limit/status', [App\Http\Controllers\RateLimitController::class, 'status']);
         
         // Order management - accessible by staff (customers use separate Customer model/auth)
-        Route::group(['middleware' => 'role.permission:CASHIER|KITCHEN_STAFF|DELIVERY_MANAGER|CUSTOMER_SERVICE'], function () {
+        Route::group(['middleware' => 'role.permission:CASHIER|KITCHEN_STAFF|DELIVERY_MANAGER|CUSTOMER_SERVICE|RESTAURANT_OWNER'], function () {
             // Order viewing and creation (all roles)
             Route::get('/orders', [OrderController::class, 'index']);
             Route::get('/orders/{order}', [OrderController::class, 'show']);
@@ -145,8 +145,8 @@ Route::middleware([\App\Http\Middleware\ApiVersionMiddleware::class])->prefix('v
             Route::post('/orders', [OrderController::class, 'store']);
             
             // Order updates (staff only) - will be controlled by policy/controller logic
-            Route::put('/orders/{order}', [OrderController::class, 'update']);
-            Route::patch('/orders/{order}', [OrderController::class, 'update']);
+            Route::put('/orders/{order}', [OrderController::class, 'update'])->middleware('role.permission:CASHIER|KITCHEN_STAFF|DELIVERY_MANAGER|CUSTOMER_SERVICE|RESTAURANT_OWNER');
+            Route::patch('/orders/{order}', [OrderController::class, 'update'])->middleware('role.permission:CASHIER|KITCHEN_STAFF|DELIVERY_MANAGER|CUSTOMER_SERVICE|RESTAURANT_OWNER');
             
             // Special requests for orders
             Route::post('/orders/special-requests', [OrderSpecialRequestController::class, 'store']);

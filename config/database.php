@@ -99,11 +99,11 @@ return [
 
         'testing' => [
             'driver' => 'pgsql',
-            'host' => env('DB_HOST', '127.0.0.1'),
-            'port' => env('DB_PORT', '5432'),
+            'host' => '127.0.0.1',
+            'port' => '5433',
             'database' => 'laravel_app_test',
-            'username' => env('DB_USERNAME', 'postgres'),
-            'password' => env('DB_PASSWORD', ''),
+            'username' => 'postgres',
+            'password' => 'postgres123',
             'charset' => 'utf8',
             'prefix' => '',
             'prefix_indexes' => true,

@@ -108,7 +108,8 @@ class WebSocketRealTimeTest extends TestCase
             'password' => bcrypt('password'),
             'role' => 'RESTAURANT_OWNER',
             'restaurant_id' => $this->restaurant->id,
-            'restaurant_branch_id' => $this->restaurantBranch->id
+            'restaurant_branch_id' => $this->restaurantBranch->id,
+            'status' => 'active'
         ]);
         
         // Create kitchen staff
@@ -571,7 +572,10 @@ class WebSocketRealTimeTest extends TestCase
         Event::fake([OrderStatusUpdated::class]);
         
         $this->actingAs($this->restaurantOwner);
-        
+
+        // Debugging: Dump user and order data before update
+        // dd($this->restaurantOwner->toArray(), $this->order->toArray());
+
         // Update order status
         $updateData = ['status' => 'completed'];
         $response = $this->putJson("/api/v1/orders/{$this->order->id}", $updateData);
@@ -630,7 +634,7 @@ class WebSocketRealTimeTest extends TestCase
         $tokenData = [
             'user_type' => 'customer',
             'user_id' => $this->customer->id,
-            'token' => 'ios_test_token_12345',
+            'token' => str_repeat('a', 100), // Ensure token is at least 100 characters
             'platform' => 'ios',
             'device_id' => 'ios_device_123'
         ];

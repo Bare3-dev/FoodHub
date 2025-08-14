@@ -5,13 +5,14 @@ namespace Tests\Feature\Api;
 use Tests\TestCase;
 use App\Models\ApiVersion;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class ApiVersionAnalyticsTest extends TestCase
 {
-    use RefreshDatabase, WithFaker;
+    use WithFaker;
 
     protected function setUp(): void
     {

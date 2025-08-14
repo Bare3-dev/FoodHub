@@ -5,15 +5,12 @@ namespace Tests\Unit\Models;
 use App\Models\User;
 use App\Models\Restaurant;
 use App\Models\Customer;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 use Illuminate\Support\Facades\Hash;
 
 class UserTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected User $user;
 
     protected function setUp(): void

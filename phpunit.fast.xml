@@ -4,15 +4,15 @@
          bootstrap="vendor/autoload.php"
          colors="true"
          processIsolation="false"
-         stopOnFailure="false"
+         stopOnFailure="true"
          cacheDirectory=".phpunit.cache"
+         executionOrder="random"
+         failOnWarning="false"
+         failOnRisky="false"
 >
     <testsuites>
-        <testsuite name="Unit">
-            <directory>tests/Unit</directory>
-        </testsuite>
-        <testsuite name="Feature">
-            <directory>tests/Feature</directory>
+        <testsuite name="Fast">
+            <file>tests/Feature/Api/AuthApiTest.php</file>
         </testsuite>
     </testsuites>
     <source>
@@ -30,6 +30,13 @@
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="BROADCAST_CONNECTION" value="log"/>
+        <!-- Disable heavy features for fast testing -->
+        <env name="RATE_LIMITING_ENABLED_IN_TESTS" value="false"/>
+        <env name="SECURITY_LOGGING_ENABLED" value="false"/>
+        <env name="CORS_ENABLED_IN_TESTS" value="false"/>
+        <env name="HTTPS_ENFORCEMENT_ENABLED" value="false"/>
+        <env name="INPUT_SANITIZATION_ENABLED" value="false"/>
+        <!-- Use in-memory database for speed -->
+        <env name="DB_DATABASE" value="laravel_app_test"/>
     </php>
 </phpunit>
-

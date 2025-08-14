@@ -19,11 +19,11 @@ class AuthorizationTest extends TestCase
     public function unauthenticated_users_cannot_access_protected_endpoints()
     {
         $protectedEndpoints = [
-            'GET /api/user',
-            'POST /api/auth/logout',
-            'GET /api/orders',
-            'POST /api/orders',
-            'GET /api/rate-limit/status'
+            'GET /api/v1/user',
+            'POST /api/v1/auth/logout',
+            'GET /api/v1/orders',
+            'POST /api/v1/orders',
+            'GET /api/v1/rate-limit/status'
         ];
 
         foreach ($protectedEndpoints as $endpoint) {
@@ -40,14 +40,14 @@ class AuthorizationTest extends TestCase
         $kitchenStaff = $this->actingAsUser('KITCHEN_STAFF');
 
         // Kitchen staff can access their own data
-        $this->getJson('/api/user')->assertStatus(200);
+        $this->getJson('/api/v1/user')->assertStatus(200);
         
         // Kitchen staff can view orders (they need to see orders to prepare food)
-        $this->getJson('/api/orders')->assertStatus(200);
+        $this->getJson('/api/v1/orders')->assertStatus(200);
         
         // Kitchen staff can create orders but need valid data
         $restaurant = $this->createRestaurant();
-        $this->postJson('/api/orders', [
+        $this->postJson('/api/v1/orders', [
             'restaurant_id' => $restaurant->id,
             'items' => [
                 ['menu_item_id' => 1, 'quantity' => 2, 'price' => 10.00]
@@ -55,9 +55,9 @@ class AuthorizationTest extends TestCase
         ])->assertStatus(422); // Validation fails but access is allowed
 
         // Kitchen staff cannot access admin functions
-        $this->getJson('/api/restaurants')->assertStatus(200); // Public endpoint
-        $this->postJson('/api/restaurants', [])->assertStatus(403); // Admin only
-        $this->getJson('/api/staff')->assertStatus(403); // Admin only
+        $this->getJson('/api/v1/restaurants')->assertStatus(200); // Public endpoint
+        $this->postJson('/api/v1/restaurants', [])->assertStatus(403); // Admin only
+        $this->getJson('/api/v1/staff')->assertStatus(403); // Admin only
     }
 
     #[Test]
@@ -66,21 +66,21 @@ class AuthorizationTest extends TestCase
         $cashier = $this->actingAsUser('CASHIER');
 
         // Cashier can view orders
-        $this->getJson('/api/orders')->assertStatus(200);
+        $this->getJson('/api/v1/orders')->assertStatus(200);
         
         // Cashier can view customers
-        $this->getJson('/api/customers')->assertStatus(200);
+        $this->getJson('/api/v1/customers')->assertStatus(200);
         
         // Cashier can create customers
-        $this->postJson('/api/customers', [
+        $this->postJson('/api/v1/customers', [
             'name' => 'Test Customer',
             'email' => 'customer@test.com',
             'phone' => '+1234567890'
         ])->assertStatus(422); // Will fail validation but shows access allowed
 
         // Cashier cannot access admin functions
-        $this->postJson('/api/restaurants', [])->assertStatus(403);
-        $this->postJson('/api/menu-categories', [])->assertStatus(403);
+        $this->postJson('/api/v1/restaurants', [])->assertStatus(403);
+        $this->postJson('/api/v1/menu-categories', [])->assertStatus(403);
     }
 
     #[Test]
@@ -89,7 +89,7 @@ class AuthorizationTest extends TestCase
         $kitchenStaff = $this->actingAsUser('KITCHEN_STAFF');
 
         // Kitchen staff can view orders
-        $this->getJson('/api/orders')->assertStatus(200);
+        $this->getJson('/api/v1/orders')->assertStatus(200);
         
         // Kitchen staff can update order status for orders in their branch
         $customer = $this->createCustomer();
@@ -99,13 +99,13 @@ class AuthorizationTest extends TestCase
             'restaurant_branch_id' => $kitchenStaff->restaurant_branch_id,
         ]);
         
-        $this->putJson("/api/orders/{$order->id}", [
+        $this->putJson("/api/v1/orders/{$order->id}", [
             'status' => 'invalid_status'
         ])->assertStatus(422); // Will fail validation but shows access allowed
 
         // Kitchen staff cannot manage customers
-        $this->getJson('/api/customers')->assertStatus(403);
-        $this->postJson('/api/customers', [])->assertStatus(403);
+        $this->getJson('/api/v1/customers')->assertStatus(403);
+        $this->postJson('/api/v1/customers', [])->assertStatus(403);
     }
 
     #[Test]
@@ -115,16 +115,16 @@ class AuthorizationTest extends TestCase
         $this->actingAs($branchManager, 'sanctum');
         
         // Branch manager can view branch data (public endpoint)
-        $this->getJson('/api/restaurant-branches')->assertStatus(200);
+        $this->getJson('/api/v1/restaurant-branches')->assertStatus(200);
         
         // Branch manager can manage menu
-        $this->postJson('/api/menu-categories', [
+        $this->postJson("/api/v1/restaurants/{$branchManager->restaurant_id}/menu-categories", [
             'name' => 'Test Category',
             'restaurant_id' => $branchManager->restaurant_id
         ])->assertStatus(201);
 
         // Branch manager cannot create restaurants (this should be forbidden)
-        $this->postJson('/api/restaurants', [])->assertStatus(403);
+        $this->postJson('/api/v1/restaurants', [])->assertStatus(403);
     }
 
     #[Test]
@@ -133,23 +133,23 @@ class AuthorizationTest extends TestCase
         $owner = $this->actingAsUser('RESTAURANT_OWNER');
 
         // Restaurant owner can view restaurants
-        $this->getJson('/api/restaurants')->assertStatus(200);
+        $this->getJson('/api/v1/restaurants')->assertStatus(200);
         
         // Restaurant owner can manage restaurant branches
-        $this->postJson('/api/restaurant-branches', [
+        $this->postJson('/api/v1/restaurant-branches', [
             'name' => 'Test Branch',
             'restaurant_id' => 1
         ])->assertStatus(422); // Will fail validation but shows access allowed
 
         // Restaurant owner can manage drivers
-        $this->getJson('/api/drivers')->assertStatus(200);
-        $this->postJson('/api/drivers', [
+        $this->getJson('/api/v1/drivers')->assertStatus(200);
+        $this->postJson('/api/v1/drivers', [
             'name' => 'Test Driver',
             'license_number' => 'D123456'
         ])->assertStatus(422); // Will fail validation but shows access allowed
 
         // Restaurant owner cannot create new restaurants (only super admin)
-        $this->postJson('/api/restaurants', [])->assertStatus(403);
+        $this->postJson('/api/v1/restaurants', [])->assertStatus(403);
     }
 
     #[Test]
@@ -158,17 +158,17 @@ class AuthorizationTest extends TestCase
         $deliveryManager = $this->actingAsUser('DELIVERY_MANAGER');
 
         // Delivery manager can view orders
-        $this->getJson('/api/orders')->assertStatus(200);
+        $this->getJson('/api/v1/orders')->assertStatus(200);
         
         // Delivery manager can manage driver working zones
-        $this->getJson('/api/driver-working-zones')->assertStatus(200);
-        $this->postJson('/api/driver-working-zones', [
+        $this->getJson('/api/v1/driver-working-zones')->assertStatus(200);
+        $this->postJson('/api/v1/driver-working-zones', [
             'driver_id' => 1,
             'zone_name' => 'Test Zone'
         ])->assertStatus(422); // Will fail validation but shows access allowed
 
         // Delivery manager cannot manage menu
-        $this->postJson('/api/menu-items', [])->assertStatus(403);
+        $this->postJson('/api/v1/menu-items', [])->assertStatus(403);
     }
 
     #[Test]
@@ -177,14 +177,14 @@ class AuthorizationTest extends TestCase
         $customerService = $this->actingAsUser('CUSTOMER_SERVICE');
 
         // Customer service can view and manage customers
-        $this->getJson('/api/customers')->assertStatus(200);
-        $this->postJson('/api/customers', [
+        $this->getJson('/api/v1/customers')->assertStatus(200);
+        $this->postJson('/api/v1/customers', [
             'name' => 'Test Customer'
         ])->assertStatus(422); // Will fail validation but shows access allowed
 
         // Customer service can manage loyalty programs
-        $this->getJson('/api/loyalty-programs')->assertStatus(200);
-        $this->postJson('/api/loyalty-programs', [
+        $this->getJson('/api/v1/loyalty-programs')->assertStatus(200);
+        $this->postJson('/api/v1/loyalty-programs', [
             'name' => 'Test Loyalty Program',
             'restaurant_id' => 1,
             'type' => 'points',
@@ -196,8 +196,8 @@ class AuthorizationTest extends TestCase
         ])->assertStatus(422); // Will fail validation but shows access allowed
 
         // Customer service cannot manage restaurants
-        $this->postJson('/api/restaurants', [])->assertStatus(403);
-        $this->postJson('/api/menu-items', [])->assertStatus(403);
+        $this->postJson('/api/v1/restaurants', [])->assertStatus(403);
+        $this->postJson('/api/v1/menu-items', [])->assertStatus(403);
     }
 
 
@@ -237,13 +237,13 @@ class AuthorizationTest extends TestCase
         $driver = $this->actingAsUser('DRIVER');
 
         // Driver should have limited access
-        $this->getJson('/api/user')->assertStatus(200);
+        $this->getJson('/api/v1/user')->assertStatus(200);
         
         // Driver cannot access admin functions
-        $this->getJson('/api/restaurants')->assertStatus(200); // Public endpoint
-        $this->postJson('/api/restaurants', [])->assertStatus(403);
-        $this->getJson('/api/customers')->assertStatus(403);
-        $this->getJson('/api/staff')->assertStatus(403);
+        $this->getJson('/api/v1/restaurants')->assertStatus(200); // Public endpoint
+        $this->postJson('/api/v1/restaurants', [])->assertStatus(403);
+        $this->getJson('/api/v1/customers')->assertStatus(403);
+        $this->getJson('/api/v1/staff')->assertStatus(403);
     }
 
     #[Test]
@@ -253,17 +253,17 @@ class AuthorizationTest extends TestCase
         $restaurantOwner = $this->actingAsUser('RESTAURANT_OWNER');
         
         // Restaurant owner should be able to access branch manager functions (menu management)
-        $this->getJson('/api/restaurant-branches')->assertStatus(200);
-        $this->postJson('/api/menu-categories', [])->assertStatus(422); // Access allowed, validation fails
+        $this->getJson('/api/v1/restaurant-branches')->assertStatus(200);
+        $this->postJson("/api/v1/restaurants/{$restaurantOwner->restaurant_id}/menu-categories", [])->assertStatus(422); // Access allowed, validation fails
 
         // Branch manager can access their own functions (menu management)
         $branchManager = $this->actingAsUser('BRANCH_MANAGER');
         $branchManager->load('branch');
-        $this->postJson('/api/menu-categories', [])->assertStatus(422); // Access allowed, validation fails
+        $this->postJson("/api/v1/restaurants/{$branchManager->restaurant_id}/menu-categories", [])->assertStatus(422); // Access allowed, validation fails
         
         // But branch manager cannot access restaurant owner functions (creating restaurant branches)
         $restaurant = $this->createRestaurant(); // Create a valid restaurant
-        $this->postJson('/api/restaurant-branches', [
+        $this->postJson('/api/v1/restaurant-branches', [
             'restaurant_id' => $restaurant->id,
             'name' => 'Test Branch',
             'address' => '123 Test St',
@@ -278,24 +278,24 @@ class AuthorizationTest extends TestCase
         
         // Kitchen staff cannot access admin functions
         $kitchenStaff = $this->actingAsUser('KITCHEN_STAFF');
-        $this->postJson('/api/menu-categories', [])->assertStatus(403); // Forbidden - kitchen staff cannot manage menu
+        $this->postJson('/api/v1/menu-categories', [])->assertStatus(403); // Forbidden - kitchen staff cannot manage menu
     }
 
     #[Test]
     public function cors_headers_are_different_for_different_security_levels()
     {
         // Public endpoints should have permissive CORS
-        $response = $this->getJson('/api/restaurants');
+        $response = $this->getJson('/api/v1/restaurants');
         $response->assertHeader('Access-Control-Allow-Origin', '*');
 
         // Private endpoints should have restrictive CORS
         $user = $this->actingAsUser();
-        $response = $this->apiAs($user, 'GET', '/api/user');
+        $response = $this->apiAs($user, 'GET', '/api/v1/user');
         $this->assertNotEquals('*', $response->headers->get('Access-Control-Allow-Origin'));
 
         // Admin endpoints should have most restrictive CORS
         $admin = $this->actingAsUser('SUPER_ADMIN');
-        $response = $this->apiAs($admin, 'GET', '/api/staff');
+        $response = $this->apiAs($admin, 'GET', '/api/v1/staff');
         $corsOrigin = $response->headers->get('Access-Control-Allow-Origin');
         $this->assertTrue(
             $corsOrigin === null || 
@@ -316,7 +316,7 @@ class AuthorizationTest extends TestCase
 
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token
-        ])->getJson('/api/user');
+        ])->getJson('/api/v1/user');
 
         $response->assertStatus(403);
     }
@@ -339,21 +339,24 @@ class AuthorizationTest extends TestCase
         ]);
 
         // Cashiers can view loyalty programs according to the policy
-        $response = $this->apiAs($cashier, 'GET', '/api/loyalty-programs');
+        $response = $this->apiAs($cashier, 'GET', '/api/v1/loyalty-programs');
         $response->assertStatus(200);
 
         // But should be able to access order endpoints
-        $response = $this->apiAs($cashier, 'GET', '/api/orders');
+        $response = $this->apiAs($cashier, 'GET', '/api/v1/orders');
         $response->assertStatus(200);
     }
 
     #[Test]
     public function api_endpoints_log_authorization_failures()
     {
+        // Enable security logging for this test
+        config(['security.logging_enabled_in_tests' => true]);
+        
         $kitchenStaff = $this->actingAsUser('KITCHEN_STAFF');
 
         // Try to access admin endpoint
-        $this->apiAs($kitchenStaff, 'POST', '/api/restaurants', []);
+        $this->apiAs($kitchenStaff, 'POST', '/api/v1/restaurants', []);
 
         // Should log the authorization failure
         $this->assertDatabaseHas('security_logs', [
@@ -379,7 +382,7 @@ class AuthorizationTest extends TestCase
 
         // Test kitchen staff rate limiting (should be limited after 5 requests)
         for ($i = 0; $i < 12; $i++) {
-            $response = $this->apiAs($kitchenStaff, 'GET', '/api/orders');
+            $response = $this->apiAs($kitchenStaff, 'GET', '/api/v1/orders');
         }
         $response->assertStatus(429); // Should be rate limited
 

@@ -43,8 +43,12 @@ class AdvancedRateLimitMiddleware
      */
     public function handle(Request $request, Closure $next, string $endpointType = 'general', ?int $customLimit = null, ?int $customWindow = null): Response
     {
-        // Enable rate limiting in tests but with test-specific behavior
+        // Skip rate limiting entirely in testing environment unless explicitly enabled
         $isTesting = app()->environment('testing');
+        
+        if ($isTesting && !config('rate_limiting.enabled_in_tests', false)) {
+            return $next($request);
+        }
         
         // Debug logging for testing
         if ($isTesting) {

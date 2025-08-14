@@ -232,6 +232,18 @@ class PushNotificationService
         return $this->fcmService->sendToUserType($userType, $userId, $data, $notification);
     }
 
+    public function sendToCustomer(int $customerId, string $title, string $body, array $data = []): bool
+    {
+        $notification = [
+            'title' => $title,
+            'body' => $body,
+            'sound' => 'default',
+            'badge' => '1',
+        ];
+
+        return $this->fcmService->sendToUserType('customer', $customerId, $data, $notification);
+    }
+
     private function getOrderStatusMessage(string $status, Order $order): string
     {
         return match ($status) {

@@ -45,7 +45,7 @@ class OrderTest extends TestCase
     {
         $fillable = [
             'order_number', 'customer_id', 'restaurant_id', 'restaurant_branch_id',
-            'customer_address_id', 'status', 'type', 'payment_status', 'payment_method',
+            'customer_address_id', 'driver_id', 'status', 'type', 'payment_status', 'payment_method',
             'subtotal', 'tax_amount', 'delivery_fee', 'service_fee', 'discount_amount',
             'total_amount', 'currency', 'confirmed_at', 'prepared_at', 'picked_up_at',
             'delivered_at', 'cancelled_at', 'estimated_preparation_time',

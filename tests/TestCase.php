@@ -39,6 +39,7 @@ abstract class TestCase extends BaseTestCase
         $this->app->singleton('role.permission', RoleAndPermissionMiddleware::class);
     }
 
+    
     protected function tearDown(): void
     {
         // Clean up memory after each test

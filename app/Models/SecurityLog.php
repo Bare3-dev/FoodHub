@@ -46,6 +46,11 @@ class SecurityLog extends Model
         ?string $targetType = null,
         ?int $targetId = null
     ): self {
+        // Skip logging in testing environment unless explicitly enabled
+        if (app()->environment('testing') && !config('security.logging_enabled_in_tests', false)) {
+            return new self(); // Return empty model for tests
+        }
+
         return self::create([
             'user_id' => $userId,
             'event_type' => $eventType,

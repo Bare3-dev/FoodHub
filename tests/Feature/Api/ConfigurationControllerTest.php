@@ -80,7 +80,7 @@ final class ConfigurationControllerTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->user)
-            ->getJson("/api/restaurants/{$this->restaurant->id}/config?key=test_key");
+            ->getJson("/api/v1/restaurants/{$this->restaurant->id}/config?key=test_key");
 
         $response->assertOk()
             ->assertJson([
@@ -102,7 +102,7 @@ final class ConfigurationControllerTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->user)
-            ->getJson("/api/restaurants/{$this->restaurant->id}/config");
+            ->getJson("/api/v1/restaurants/{$this->restaurant->id}/config");
 
         $response->assertOk()
             ->assertJson([
@@ -126,7 +126,7 @@ final class ConfigurationControllerTest extends TestCase
     public function it_can_set_restaurant_config()
     {
         $response = $this->actingAs($this->user)
-            ->postJson("/api/restaurants/{$this->restaurant->id}/config", [
+            ->postJson("/api/v1/restaurants/{$this->restaurant->id}/config", [
                 'key' => 'test_key',
                 'value' => 'test_value',
             ]);
@@ -149,7 +149,7 @@ final class ConfigurationControllerTest extends TestCase
     public function it_validates_config_key_format()
     {
         $response = $this->actingAs($this->user)
-            ->postJson("/api/restaurants/{$this->restaurant->id}/config", [
+            ->postJson("/api/v1/restaurants/{$this->restaurant->id}/config", [
                 'key' => 'invalid-key',
                 'value' => 'test_value',
             ]);
@@ -183,7 +183,7 @@ final class ConfigurationControllerTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->user)
-            ->getJson("/api/restaurant-branches/{$this->branch->id}/config?key=test_key");
+            ->getJson("/api/v1/restaurant-branches/{$this->branch->id}/config?key=test_key");
 
         // Debug: Log the response details
         \Log::info('Test response details', [
@@ -212,7 +212,7 @@ final class ConfigurationControllerTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->user)
-            ->getJson("/api/restaurant-branches/{$this->branch->id}/config?key=test_key");
+            ->getJson("/api/v1/restaurant-branches/{$this->branch->id}/config?key=test_key");
 
         $response->assertOk()
             ->assertJson([
@@ -231,7 +231,7 @@ final class ConfigurationControllerTest extends TestCase
         ];
 
         $response = $this->actingAs($this->user)
-            ->postJson("/api/restaurant-branches/{$this->branch->id}/operating-hours", [
+            ->postJson("/api/v1/restaurant-branches/{$this->branch->id}/operating-hours", [
                 'operating_hours' => $hours,
             ]);
 
@@ -255,7 +255,7 @@ final class ConfigurationControllerTest extends TestCase
         ];
 
         $response = $this->actingAs($this->user)
-            ->postJson("/api/restaurant-branches/{$this->branch->id}/operating-hours", [
+            ->postJson("/api/v1/restaurant-branches/{$this->branch->id}/operating-hours", [
                 'operating_hours' => $invalidHours,
             ]);
 
@@ -288,7 +288,7 @@ final class ConfigurationControllerTest extends TestCase
         ];
 
         $response = $this->actingAs($this->user)
-            ->postJson("/api/restaurants/{$this->restaurant->id}/loyalty-program", $settings);
+            ->postJson("/api/v1/restaurants/{$this->restaurant->id}/loyalty-program", $settings);
 
         $response->assertOk()
             ->assertJson([
@@ -312,7 +312,7 @@ final class ConfigurationControllerTest extends TestCase
         ];
 
         $response = $this->actingAs($this->user)
-            ->postJson("/api/restaurants/{$this->restaurant->id}/loyalty-program", $invalidSettings);
+            ->postJson("/api/v1/restaurants/{$this->restaurant->id}/loyalty-program", $invalidSettings);
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['points_per_currency']);
@@ -331,7 +331,7 @@ final class ConfigurationControllerTest extends TestCase
         ];
 
         $response = $this->actingAs($this->user)
-            ->postJson("/api/restaurants/{$this->restaurant->id}/loyalty-program", $invalidSettings);
+            ->postJson("/api/v1/restaurants/{$this->restaurant->id}/loyalty-program", $invalidSettings);
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['spin_wheel_probabilities']);
@@ -340,7 +340,7 @@ final class ConfigurationControllerTest extends TestCase
     /** @test */
     public function it_requires_authentication()
     {
-        $response = $this->getJson("/api/restaurants/{$this->restaurant->id}/config");
+        $response = $this->getJson("/api/v1/restaurants/{$this->restaurant->id}/config");
 
         $response->assertStatus(401);
     }
@@ -349,7 +349,7 @@ final class ConfigurationControllerTest extends TestCase
     public function it_handles_encrypted_configs_properly()
     {
         $response = $this->actingAs($this->user)
-            ->postJson("/api/restaurants/{$this->restaurant->id}/config", [
+            ->postJson("/api/v1/restaurants/{$this->restaurant->id}/config", [
                 'key' => 'api_secret',
                 'value' => 'secret_key_123',
             ]);
@@ -380,7 +380,7 @@ final class ConfigurationControllerTest extends TestCase
 
         // First call
         $response1 = $this->actingAs($this->user)
-            ->getJson("/api/restaurants/{$this->restaurant->id}/config?key=test_key");
+            ->getJson("/api/v1/restaurants/{$this->restaurant->id}/config?key=test_key");
 
         $response1->assertOk();
 
@@ -391,7 +391,7 @@ final class ConfigurationControllerTest extends TestCase
 
         // Second call should return cached value
         $response2 = $this->actingAs($this->user)
-            ->getJson("/api/restaurants/{$this->restaurant->id}/config?key=test_key");
+            ->getJson("/api/v1/restaurants/{$this->restaurant->id}/config?key=test_key");
 
         $response2->assertOk()
             ->assertJson([
@@ -412,18 +412,18 @@ final class ConfigurationControllerTest extends TestCase
 
         // First call to cache
         $this->actingAs($this->user)
-            ->getJson("/api/restaurants/{$this->restaurant->id}/config?key=test_key");
+            ->getJson("/api/v1/restaurants/{$this->restaurant->id}/config?key=test_key");
 
         // Update config through API
         $this->actingAs($this->user)
-            ->postJson("/api/restaurants/{$this->restaurant->id}/config", [
+            ->postJson("/api/v1/restaurants/{$this->restaurant->id}/config", [
                 'key' => 'test_key',
                 'value' => 'updated_value',
             ]);
 
         // Get config again
         $response = $this->actingAs($this->user)
-            ->getJson("/api/restaurants/{$this->restaurant->id}/config?key=test_key");
+            ->getJson("/api/v1/restaurants/{$this->restaurant->id}/config?key=test_key");
 
         $response->assertOk()
             ->assertJson([
@@ -436,7 +436,7 @@ final class ConfigurationControllerTest extends TestCase
     {
         // Test integer
         $response = $this->actingAs($this->user)
-            ->postJson("/api/restaurants/{$this->restaurant->id}/config", [
+            ->postJson("/api/v1/restaurants/{$this->restaurant->id}/config", [
                 'key' => 'int_key',
                 'value' => 42,
             ]);
@@ -444,7 +444,7 @@ final class ConfigurationControllerTest extends TestCase
         $response->assertOk();
 
         $getResponse = $this->actingAs($this->user)
-            ->getJson("/api/restaurants/{$this->restaurant->id}/config?key=int_key");
+            ->getJson("/api/v1/restaurants/{$this->restaurant->id}/config?key=int_key");
 
         $getResponse->assertOk()
             ->assertJson([
@@ -454,7 +454,7 @@ final class ConfigurationControllerTest extends TestCase
         // Test array
         $arrayValue = ['key' => 'value', 'number' => 123];
         $response = $this->actingAs($this->user)
-            ->postJson("/api/restaurants/{$this->restaurant->id}/config", [
+            ->postJson("/api/v1/restaurants/{$this->restaurant->id}/config", [
                 'key' => 'array_key',
                 'value' => $arrayValue,
             ]);
@@ -462,7 +462,7 @@ final class ConfigurationControllerTest extends TestCase
         $response->assertOk();
 
         $getResponse = $this->actingAs($this->user)
-            ->getJson("/api/restaurants/{$this->restaurant->id}/config?key=array_key");
+            ->getJson("/api/v1/restaurants/{$this->restaurant->id}/config?key=array_key");
 
         $getResponse->assertOk()
             ->assertJson([

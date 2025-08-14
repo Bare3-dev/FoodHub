@@ -6,19 +6,65 @@ namespace Tests\Unit\Models;
 
 use App\Models\SecurityLog;
 use App\Models\User;
+use Illuminate\Foundation\Testing\TestCase;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 final class SecurityLogTest extends TestCase
 {
-    use RefreshDatabase;
+    use WithFaker;
 
     private SecurityLog $securityLog;
 
     protected function setUp(): void
     {
         parent::setUp();
+        
+        // Manually set up the database for this test
+        $this->setupTestDatabase();
+        
         $this->securityLog = SecurityLog::factory()->create();
+    }
+
+    protected function tearDown(): void
+    {
+        // Clean up after each test
+        $this->cleanupTestDatabase();
+        
+        parent::tearDown();
+    }
+
+    /**
+     * Set up the test database manually
+     */
+    private function setupTestDatabase(): void
+    {
+        // Force testing connection
+        config(['database.default' => 'testing']);
+        DB::purge();
+        DB::reconnect();
+        
+        // Run migrations if they haven't been run
+        if (!Schema::hasTable('migrations')) {
+            $this->artisan('migrate:fresh', ['--env' => 'testing']);
+        }
+    }
+
+    /**
+     * Clean up the test database
+     */
+    private function cleanupTestDatabase(): void
+    {
+        // Truncate all tables to clean up data
+        $tables = ['security_logs', 'users'];
+        foreach ($tables as $table) {
+            if (Schema::hasTable($table)) {
+                DB::table($table)->truncate();
+            }
+        }
     }
 
     /**
